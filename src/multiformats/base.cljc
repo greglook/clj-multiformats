@@ -16,6 +16,7 @@
 ;; ## Base Mappings
 
 ; TODO: this won't really work in cljs
+; TODO: check against multiformats.codec/base-codes ?
 
 (def encodings
   "Set of supported multibase encoding keys."

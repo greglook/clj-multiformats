@@ -1,51 +1,165 @@
 (ns multiformats.codec
   "Multicodec is a multiformat which wraps other formats with a tiny bit of
   self-description. A multicodec identifier may either be a varint (in a byte
-  string) or a symbol (in a text string).
+  string) or a character (in a text string).
 
   https://github.com/multiformats/multicodec")
 
 
-(def table
-  "Map of codec keys to their compact code values."
-  ; TODO: fill out more codes?
-  {:raw 0x55
+;; ## Code Tables
 
-   ; General Data Formats
-   :protobuf 0x50
-   :cbor     0x51
-   :bencode  0x63
+(def miscellaneous-codes
+  "Miscellaneous codes."
+  {:raw 0x55  ; Raw binary data.
+   ,,,})
 
-   ; Multiformats
-   :multicodec 0x30
+
+(def base-codes
+  "Base encodings, as used in multibase."
+  {:base1              \1   ; Unary
+   :base2              \0   ; Binary
+   :base8              \7   ; Octal
+   :base10             \9   ; Decimal
+   :base16             \f   ; Hexadecimal (lower-case)
+   :base16-upper       \F   ; Hexadecimal (upper-case)
+   :base32             \b   ; RFC 4648 (lower-case)
+   :base32-upper       \B   ; RFC 4648 (upper-case)
+   :base32pad          \c   ; RFC 4648 (lower-case)
+   :base32pad-upper    \C   ; RFC 4648 (upper-case)
+   :base32hex          \v   ; RFC 4648 (lower-case)
+   :base32hex-upper    \V   ; RFC 4648 (upper-case)
+   :base32hexpad       \t   ; RFC 4648 (lower-case)
+   :base32hexpad-upper \T   ; RFC 4648 (upper-case)
+   :base58flickr       \Z   ; Base58 Flicker
+   :base58btc          \z   ; Base58 Bitcoin
+   :base64             \m   ; RFC 4648
+   :base64pad          \M   ; RFC 4648
+   :base64url          \u   ; RFC 4648
+   :base64urlpad       \U   ; RFC 4648
+   ,,,})
+
+
+(def serialization-codes
+  "General-purpose serialization formats."
+  {:cbor     0x51    ; CBOR
+   ;:bson    0x??    ; Binary JSON
+   ;:ubjson  0x??    ; Universal Binary JSON
+   :protobuf 0x50    ; Protocol Buffers
+   ;:capnp   0x??    ; Cap-n-Proto
+   ;:flatbuf 0x??    ; FlatBuffers
+   :rlp      0x60    ; Recursive Length Prefix
+   ;:msgpack 0x??    ; MessagePack
+   ;:binc    0x??    ; Binc
+   :bencode  0x63    ; Bencode
+   ,,,})
+
+
+(def multiformat-codes
+  "Generic codes to indicate which multiformat a value represents."
+  {:multicodec 0x30
    :multihash  0x31
    :multiaddr  0x32
-
-   ; IPLD
-   :dag-pb   0x70
-   :dag-cbor 0x71
-
-   ; Git
-   :git-raw 0x78})
+   :multibase  0x33})
 
 
-; TODO: register new codec codes?
+(def multihash-codes
+  "Hash algorithm identifiers for use in multihashes."
+  {:identity     0x00
+   :md4          0xd4
+   :md5          0xd5
+   :sha1         0x11
+   :sha2-256     0x12
+   :sha2-512     0x13
+   :dbl-sha2-256 0x56
+   :sha3-224     0x17
+   :sha3-256     0x16
+   :sha3-384     0x15
+   :sha3-512     0x14
+   :shake-128    0x18
+   :shake-256    0x19
+   :keccak-224   0x1A
+   :keccak-256   0x1B
+   :keccak-384   0x1C
+   :keccak-512   0x1D
+   :murmur3      0x22
+   :x11          0x1100
+   ,,,})
 
 
-(defn find-codec
-  "Looks up a codec by keyword name or code number. Returns a map with the
-  codec's `:name` and `:code`, or `nil` if the value does not map to any valid
-  multicodec."
-  [k]
-  (cond
-    (keyword? k)
-    (when-let [code (get table k)]
-      {:code code, :name k})
+(def multiaddr-codes
+  "Address identifiers for use in multiaddrs."
+  {:ip4         0x04
+   :ip6         0x29
+   :ip6zone     0x2A
+   :tcp         0x06
+   :udp         0x0111
+   :dccp        0x21
+   :sctp        0x84
+   :udt         0x012D
+   :utp         0x012E
+   :ipfs        0x01A5
+   :http        0x01E0
+   :https       0x01BB
+   :quic        0x01CC
+   :ws          0x01DD
+   :onion       0x01BC
+   :p2p-circuit 0x0122
+   :dns4        0x36
+   :dns6        0x37
+   :dnsaddr     0x38
+   ,,,})
 
-    (not (integer? k))
-    nil
 
-    :else
-    (some #(when (= k (val %))
-             {:code k, :name (key %)})
-          table)))
+(def ipld-codes
+  "Structured data formats used in IPLD and other systems."
+  {:ipld-pb              0x70    ; MerkleDAG protobuf
+   :ipld-cbor            0x71    ; MerkleDAG cbor
+   :ipld-json            0x0129  ; MerkleDAG json
+   :git-raw              0x78    ; Raw Git object
+   :eth-block            0x90    ; Ethereum Block (RLP)
+   :eth-block-list       0x91    ; Ethereum Block List (RLP)
+   :eth-tx-trie          0x92    ; Ethereum Transaction Trie (Eth-Trie)
+   :eth-tx               0x93    ; Ethereum Transaction (RLP)
+   :eth-tx-receipt-trie  0x94    ; Ethereum Transaction Receipt Trie (Eth-Trie)
+   :eth-tx-receipt       0x95    ; Ethereum Transaction Receipt (RLP)
+   :eth-state-trie       0x96    ; Ethereum State Trie (Eth-Secure-Trie)
+   :eth-account-snapshot 0x97    ; Ethereum Account Snapshot (RLP)
+   :eth-storage-trie     0x98    ; Ethereum Contract Storage Trie (Eth-Secure-Trie)
+   :bitcoin-block        0xb0    ; Bitcoin Block
+   :bitcoin-tx           0xb1    ; Bitcoin Tx
+   :zcash-block          0xc0    ; Zcash Block
+   :zcash-tx             0xc1    ; Zcash Tx
+   :stellar-block        0xd0    ; Stellar Block
+   :stellar-tx           0xd1    ; Stellar Tx
+   :decred-block         0xe0    ; Decred Block
+   :decred-tx            0xe1    ; Decred Tx
+   :dash-block           0xf0    ; Dash Block
+   :dash-tx              0xf1    ; Dash Tx
+   :torrent-info         0x7b    ; Torrent file info field (bencoded)
+   :torrent-file         0x7c    ; Torrent file (bencoded)
+   :ed25519-pub          0xed    ; Ed25519 public key
+   ,,,})
+
+
+
+;; ## Lookup Maps
+
+(def key->code
+  "Map of codec keys to compact code values."
+  ; TODO: check for conflicts
+  (merge
+    miscellaneous-codes
+    base-codes
+    serialization-codes
+    multiformat-codes
+    multihash-codes
+    multiaddr-codes
+    ipld-codes))
+
+
+(def code->key
+  "Map of compact code values to codec keys."
+  (into {} (map (juxt val key)) key->code))
+
+
+; TODO: function to register new codes?

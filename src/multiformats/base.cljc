@@ -8,9 +8,10 @@
   (:require
     [alphabase.core :as abc]
     [clojure.string :as str])
-  ; TODO: cljc
-  (:import
-    java.util.Base64))
+  ; TODO: cljs
+  #?(:clj
+     (:import
+       java.util.Base64)))
 
 
 ;; ## Base Mappings
@@ -157,16 +158,18 @@
    :prefix "?" ; FIXME: real prefix
    :formatter (fn base64-format
                 [data]
-                (-> (Base64/getUrlEncoder)
-                    (.withoutPadding)
-                    (.encodeToString data)))
+                #?(:clj
+                   (-> (Base64/getUrlEncoder)
+                       (.withoutPadding)
+                       (.encodeToString data))))
    :parser (fn base64-parse
              [string]
-             (.decode (Base64/getUrlDecoder) string))})
+             #?(:clj
+                (.decode (Base64/getUrlDecoder) string)))})
 
 
 
-;; ## Public API
+;; ## Encoding
 
 (defn format*
   "Formats binary data into a string with the given base. Returns the formatted
@@ -193,6 +196,9 @@
     (str prefix (format* base-key data))))
 
 
+
+;; ## Decoding
+
 (defn- get-prefix
   "Get the multibase prefix character from the given string. Throws an
   exception if the string is too short."
@@ -204,21 +210,28 @@
   (str (first string)))
 
 
+(defn parse*
+  "Parse a non-prefixed string into binary data using the given base. Returns
+  the decoded byte array."
+  ^bytes
+  [base-key string]
+  (let [parser (base->parser base-key)]
+    (parser string)))
+
+
 (defn parse
   "Parses a multibase-prefixed string into binary data. Returns an array with
   the parsed bytes, or throws an error if there is no known base."
   ^bytes
   [^String string]
   (let [prefix (get-prefix string)
-        base-key (prefix->base prefix)
-        parser (base->parser base-key)]
+        base-key (prefix->base prefix)]
     (when-not base-key
       (throw (ex-info (str "The prefix " (pr-str prefix)
                            " does not map to a supported multibase encoding")
                       {:data string
                        :prefix prefix})))
-    (let [parser (base->parser base-key)]
-      (parser (subs string 1)))))
+    (parse* base-key (subs string 1))))
 
 
 (defn inspect

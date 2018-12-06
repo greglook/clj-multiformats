@@ -1,12 +1,12 @@
-Multiformats for Clojure
-========================
+Clojure(Script) Multiformats
+============================
 
-A Clojure library implementing the
+This is a cross-compiled Clojure/CLJS library implementing the
 [multiformats](https://github.com/multiformats/) standards which specify
 self-describing value formats.
 
 This includes support for:
-- Unbounded [varint](...) encoding.
+- Unbounded [varint](https://github.com/multiformats/unsigned-varint) encoding.
 - IPLD [CID](https://github.com/ipld/cid) content identifiers.
 
 

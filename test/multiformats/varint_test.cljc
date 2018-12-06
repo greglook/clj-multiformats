@@ -1,7 +1,8 @@
 (ns multiformats.varint-test
   (:require
-    [alphabase.bytes :refer [bytes= init-bytes]]
-    [clojure.test :refer [deftest testing is]]
+    [alphabase.bytes :as b :refer [bytes=]]
+    #?(:clj [clojure.test :refer [deftest testing is]]
+       :cljs [cljs.test :refer-macros [deftest testing is]])
     [multiformats.varint :as varint]))
 
 
@@ -17,13 +18,15 @@
                     300 [0xAC 0x02]
                   16384 [0x80 0x80 0x01]}]
     (doseq [[n bs] examples]
-      (is (bytes= bs (varint/encode n)))
-      (is (= n (varint/decode (init-bytes bs)))))))
+      (is (= bs (b/byte-seq (varint/encode n))))
+      (is (= n (varint/decode (b/init-bytes bs)))))))
 
 
 (deftest edge-cases
   (testing "encoding"
-    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"cannot be negative"
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
+                             :cljs js/Error)
+                          #"cannot be negative"
           (varint/encode -1)))
     ; write varint larger than 9 bytes
     ; write beyond end of buffer

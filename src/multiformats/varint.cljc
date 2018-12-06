@@ -60,7 +60,7 @@
   (loop [i offset
          n 0
          v 0]
-    (if (< i (count data))
+    (if (< i (alength data))
       ; Decode next byte.
       (let [b (b/get-byte data i)]
         (if (< b 0x80)
@@ -79,10 +79,10 @@
                    (bit-or (bit-shift-left (bit-and b 0x7F) (* 7 n)) v)))))
       ; Out of bytes to decode.
       (throw (ex-info
-               (format "Ran out of bytes to decode at position %d (%d bytes from offset %d)"
-                       i n offset)
+               (str "Ran out of bytes to decode at position " i
+                    " (" n " bytes from offset " offset ")")
                {:offset offset
-                :length (count data)})))))
+                :length (alength data)})))))
 
 
 (defn decode

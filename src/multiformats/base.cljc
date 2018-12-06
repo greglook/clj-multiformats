@@ -6,6 +6,7 @@
   https://github.com/multiformats/multibase"
   (:refer-clojure :exclude [bases format])
   (:require
+    [alphabase.bytes :as b]
     [alphabase.core :as abc]
     [clojure.string :as str])
   #?(:clj
@@ -15,27 +16,30 @@
 
 (def codes
   "Map of base keys to multicodec packed symbols from the standard table."
-  {:base1         \1   ; Unary
-   :base2         \0   ; Binary
-   :base8         \7   ; Octal
-   :base10        \9   ; Decimal
-   :base16        \f   ; Hexadecimal (lower-case)
-   :BASE16        \F   ; Hexadecimal (upper-case)
-   :base32        \b   ; RFC 4648 (lower-case)
-   :BASE32        \B   ; RFC 4648 (upper-case)
-   :base32pad     \c   ; RFC 4648 (lower-case)
-   :BASE32PAD     \C   ; RFC 4648 (upper-case)
-   :base32hex     \v   ; RFC 4648 (lower-case)
-   :BASE32HEX     \V   ; RFC 4648 (upper-case)
-   :base32hexpad  \t   ; RFC 4648 (lower-case)
-   :BASE32HEXPAD  \T   ; RFC 4648 (upper-case)
+  {; Numeric
+   :base1         \1
+   :base2         \0
+   :base8         \7
+   :base10        \9
+   :base16        \f
+   :BASE16        \F
+   ; Base32 (RFC 4648)
+   :base32        \b
+   :BASE32        \B
+   :base32pad     \c
+   :BASE32PAD     \C
+   :base32hex     \v
+   :BASE32HEX     \V
+   :base32hexpad  \t
+   :BASE32HEXPAD  \T
+   ; Base58
    :base58flickr  \Z   ; Base58 Flicker
    :base58btc     \z   ; Base58 Bitcoin
-   :base64        \m   ; RFC 4648
-   :base64pad     \M   ; RFC 4648
-   :base64url     \u   ; RFC 4648
-   :base64urlpad  \U   ; RFC 4648
-   ,,,})
+   ; Base64 (RFC 4648)
+   :base64        \m
+   :base64pad     \M
+   :base64url     \u
+   :base64urlpad  \U})
 
 
 
@@ -43,10 +47,70 @@
 
 ;; ### Numeric Bases
 
-; TODO: octal, decimal?
+(def ^:private base2
+  {:key :base2
+   :formatter (fn format-binary
+                [^bytes data]
+                (reduce
+                  (fn build-str
+                    [string i]
+                    (if (< i (alength data))
+                      (let [x (b/get-byte data i)
+                            octet (str (if (zero? (bit-and x 0x80)) "0" "1")
+                                       (if (zero? (bit-and x 0x40)) "0" "1")
+                                       (if (zero? (bit-and x 0x20)) "0" "1")
+                                       (if (zero? (bit-and x 0x10)) "0" "1")
+                                       (if (zero? (bit-and x 0x08)) "0" "1")
+                                       (if (zero? (bit-and x 0x04)) "0" "1")
+                                       (if (zero? (bit-and x 0x02)) "0" "1")
+                                       (if (zero? (bit-and x 0x01)) "0" "1"))]
+                        (recur (str string octet) (inc i)))
+                      string))
+                  "" 0))
+   :parser (fn parse-binary
+             [^String string]
+             (let [string (if (zero? (rem (count string) 8))
+                            string
+                            (str (repeat (- 8 (rem (count string) 8)) "0")
+                                 string))
+                   buffer (b/byte-array (int (/ (count string) 8)))]
+               (loop [i 0]
+                 (when (< i (alength buffer))
+                   (let [octet (subs string (* i 8) (* (inc i) 8))
+                         x (bit-or (if (= "1" (nth octet 0)) 0x80 0x00)
+                                   (if (= "1" (nth octet 1)) 0x40 0x00)
+                                   (if (= "1" (nth octet 2)) 0x20 0x00)
+                                   (if (= "1" (nth octet 3)) 0x10 0x00)
+                                   (if (= "1" (nth octet 4)) 0x08 0x00)
+                                   (if (= "1" (nth octet 5)) 0x04 0x00)
+                                   (if (= "1" (nth octet 6)) 0x02 0x00)
+                                   (if (= "1" (nth octet 7)) 0x01 0x00))]
+                     (b/set-byte buffer i x)
+                     (recur (inc i)))))
+               buffer))})
+
+
+(def ^:private base8
+  {:key :base8
+   :alphabet "01234567"})
+
+
+(def ^:private base10
+  {:key :base8
+   :formatter (fn format-decimal
+                [^bytes data]
+                ; TODO: implement
+                ,,,)
+   :parser (fn parse-decimal
+             [^String string]
+             ; TODO: implement
+             ,,,
+             )})
+
 
 (def ^:private base16
   {:key :base16
+   ; OPTIMIZE: probably more efficient ways to do this
    :alphabet "0123456789abcdef"
    :case-insensitive true})
 
@@ -65,7 +129,7 @@
    :case-insensitive true})
 
 
-;; ### Base32 - RFC 4648
+;; ### Base58
 
 (def ^:private base58btc
   {:key :base58btc
@@ -74,32 +138,61 @@
 
 ;; ### Base64 - RFC 4648
 
-; TODO: base64 / base64pad
+(defn- base64-formatter
+  "Construct a new function to format bytes as base64 with normal or URL
+  alphabet, padded or not."
+  [url? padding?]
+  (fn format
+    [^bytes data]
+    ; TODO: cljs implementation
+    #?(:clj
+       (-> (if url?
+             (Base64/getUrlEncoder)
+             (Base64/getEncoder))
+           (cond->
+             (not padding?)
+             (.withoutPadding))
+           (.encodeToString data)))))
+
+
+(defn- parse-base64
+  "Parse a string of base64-encoded bytes."
+  [^String string]
+  ; TODO: cljs implementation
+  #?(:clj
+     (.decode (Base64/getDecoder) string)))
+
+
+(defn- parse-base64url
+  "Parse a string of base64url-encoded bytes."
+  [^String string]
+  ; TODO: cljs implementation
+  #?(:clj
+     (.decode (Base64/getUrlDecoder) string)))
+
+
+(def ^:private base64
+  {:key :base64
+   :formatter (base64-formatter false false)
+   :parser parse-base64})
+
+
+(def ^:private base64pad
+  {:key :base64pad
+   :formatter (base64-formatter false true)
+   :parser parse-base64})
+
 
 (def ^:private base64url
   {:key :base64url
-   :formatter (fn formatter
-                [data]
-                #?(:clj
-                   (-> (Base64/getUrlEncoder)
-                       (.withoutPadding)
-                       (.encodeToString data))))
-   :parser (fn parser
-             [string]
-             #?(:clj
-                (.decode (Base64/getUrlDecoder) string)))})
+   :formatter (base64-formatter true false)
+   :parser parse-base64url})
 
 
 (def ^:private base64urlpad
   {:key :base64urlpad
-   :formatter (fn formatter
-                [data]
-                #?(:clj
-                   (.encodeToString (Base64/getUrlEncoder) data)))
-   :parser (fn parser
-             [string]
-             #?(:clj
-                (.decode (Base64/getUrlDecoder) string)))})
+   :formatter (base64-formatter true true)
+   :parser parse-base64url})
 
 
 
@@ -192,10 +285,14 @@
   "Map of base keys to definition maps."
   (reduce install-base
           {}
-          [base16
+          [base8
+           ;base10
+           base16
            base32
            base32hex
            base58btc
+           base64
+           base64pad
            base64url
            base64urlpad]))
 

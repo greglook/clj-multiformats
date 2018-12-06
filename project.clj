@@ -43,7 +43,8 @@
      [org.clojure/tools.namespace "0.2.11"]
      ; Conflict resolution ಠ_ಠ
      [com.google.code.findbugs/jsr305 "3.0.2"]
-     [com.google.errorprone/error_prone_annotations "2.1.3"]]}
+     [com.google.errorprone/error_prone_annotations "2.1.3"]
+     [org.clojure/tools.reader "1.3.0"]]}
 
    :doo
    {:dependencies

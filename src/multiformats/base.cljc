@@ -4,45 +4,106 @@
   interfaces.
 
   https://github.com/multiformats/multibase"
-  (:refer-clojure :exclude [format])
+  (:refer-clojure :exclude [bases format])
   (:require
     [alphabase.core :as abc]
     [clojure.string :as str])
-  ; TODO: cljs
   #?(:clj
      (:import
        java.util.Base64)))
 
 
-;; ## Base Mappings
+(def codes
+  "Map of base keys to multicodec packed symbols from the standard table."
+  {:base1         \1   ; Unary
+   :base2         \0   ; Binary
+   :base8         \7   ; Octal
+   :base10        \9   ; Decimal
+   :base16        \f   ; Hexadecimal (lower-case)
+   :BASE16        \F   ; Hexadecimal (upper-case)
+   :base32        \b   ; RFC 4648 (lower-case)
+   :BASE32        \B   ; RFC 4648 (upper-case)
+   :base32pad     \c   ; RFC 4648 (lower-case)
+   :BASE32PAD     \C   ; RFC 4648 (upper-case)
+   :base32hex     \v   ; RFC 4648 (lower-case)
+   :BASE32HEX     \V   ; RFC 4648 (upper-case)
+   :base32hexpad  \t   ; RFC 4648 (lower-case)
+   :BASE32HEXPAD  \T   ; RFC 4648 (upper-case)
+   :base58flickr  \Z   ; Base58 Flicker
+   :base58btc     \z   ; Base58 Bitcoin
+   :base64        \m   ; RFC 4648
+   :base64pad     \M   ; RFC 4648
+   :base64url     \u   ; RFC 4648
+   :base64urlpad  \U   ; RFC 4648
+   ,,,})
 
-; TODO: this won't really work in cljs
-; TODO: check against multiformats.codec/base-codes ?
-
-(def encodings
-  "Set of supported multibase encoding keys."
-  #{})
 
 
-(def ^:private prefix->base
-  "Cached map of prefix characters to base keys."
-  {})
+;; ## Base Encodings
+
+;; ### Numeric Bases
+
+; TODO: octal, decimal?
+
+(def ^:private base16
+  {:key :base16
+   :alphabet "0123456789abcdef"
+   :case-insensitive true})
 
 
-(def ^:private base->prefix
-  "Cached map of base keys to prefix characters."
-  {})
+;; ### Base32 - RFC 4648
+
+(def ^:private base32
+  {:key :base32
+   :alphabet "abcdefghijklmnopqrstuvwxyz234567"
+   :case-insensitive true})
 
 
-(def ^:private base->formatter
-  "Cached map of base keys to encoding functions."
-  {})
+(def ^:private base32hex
+  {:key :base32hex
+   :alphabet "0123456789abcdefghijklmnopqrstuv"
+   :case-insensitive true})
 
 
-(def ^:private base->parser
-  "Cached map of base keys to decoding functions."
-  {})
+;; ### Base32 - RFC 4648
 
+(def ^:private base58btc
+  {:key :base58btc
+   :alphabet "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"})
+
+
+;; ### Base64 - RFC 4648
+
+; TODO: base64 / base64pad
+
+(def ^:private base64url
+  {:key :base64url
+   :formatter (fn formatter
+                [data]
+                #?(:clj
+                   (-> (Base64/getUrlEncoder)
+                       (.withoutPadding)
+                       (.encodeToString data))))
+   :parser (fn parser
+             [string]
+             #?(:clj
+                (.decode (Base64/getUrlDecoder) string)))})
+
+
+(def ^:private base64urlpad
+  {:key :base64urlpad
+   :formatter (fn formatter
+                [data]
+                #?(:clj
+                   (.encodeToString (Base64/getUrlEncoder) data)))
+   :parser (fn parser
+             [string]
+             #?(:clj
+                (.decode (Base64/getUrlDecoder) string)))})
+
+
+
+;; ## Lookup Functions
 
 (defn- lower-case?
   "Test if the given string is all lower-case."
@@ -70,7 +131,7 @@
   (or (:parser params)
       (when-let [alphabet (:alphabet params)]
         (cond
-          (not (:case-insensitive? params))
+          (not (:case-insensitive params))
           (fn parse-alphabet
             [string]
             (abc/decode alphabet string))
@@ -90,82 +151,58 @@
                       {:base (:key params)}))))
 
 
-(defn register!
-  "Register a new multibase encoding."
-  [params]
+(defn- install-base
+  "Expands a base definition map into one or more definitions and adds them to
+  the given map of bases. Returns the updated map, or throws an exception if
+  there is a conflict or insufficient information."
+  [base-map params]
   (let [base-key (:key params)
-        prefix (:prefix params)]
-    (when-not (and (keyword? base-key) (string? prefix))
-      (throw (ex-info (str "Base registered with invalid key or prefix: "
-                           (pr-str base-key) " / " (pr-str prefix))
-                      {:base base-key
-                       :prefix prefix})))
-    (when (contains? encodings base-key)
+        prefix (some-> (get codes base-key) str)]
+    (when-not (keyword? base-key)
+      (throw (ex-info (str "Base registered with invalid key: "
+                           (pr-str base-key))
+                      {:base base-key})))
+    (when-not prefix
+      (throw (ex-info (str "Base " base-key " has no assigned prefix code!")
+                      {:base base-key})))
+    (when (contains? base-map base-key)
       (throw (ex-info (str "Base " base-key " is already registered!")
                       {:base base-key})))
-    (when-let [extant (prefix->base prefix)]
+    (when-let [extant (ffirst (filter (comp #{prefix} :prefix val) base-map))]
       (throw (ex-info (str "Prefix " (pr-str prefix)
                            " is already registered to " extant)
                       {:base base-key
                        :prefix prefix})))
-    (let [formatter (base-formatter params)
-          parser (base-parser params)]
-      (alter-var-root #'encodings conj base-key)
-      (alter-var-root #'prefix->base assoc prefix base-key)
-      (alter-var-root #'base->prefix assoc base-key prefix)
-      (alter-var-root #'base->formatter assoc base-key formatter)
-      (alter-var-root #'base->parser assoc base-key parser))
-    (when (and (:case-insensitive? params)
+    (let [definition (-> params
+                         (dissoc :key)
+                         (assoc :prefix prefix
+                                :formatter (base-formatter params)
+                                :parser (base-parser params)))
+          base-map (assoc base-map base-key definition)]
+      (if (and (:case-insensitive params)
                (lower-case? prefix))
-      (recur (assoc params
-                    :key (keyword (str/upper-case (name base-key)))
-                    :prefix (str/upper-case prefix)
-                    :alphabet (str/upper-case (:alphabet params)))))))
+        (recur base-map
+               (assoc params
+                      :key (keyword (str/upper-case (name base-key)))
+                      :alphabet (str/upper-case (:alphabet params))))
+        base-map))))
 
 
-
-;; ## Base Encodings
-
-(register!
-  {:key :base16
-   :prefix "f"
-   :alphabet "0123456789abcdef"
-   :case-insensitive? true})
-
-
-(register!
-  {:key :base32
-   :prefix "b"
-   :alphabet "abcdefghijklmnopqrstuvwxyz234567"
-   :case-insensitive? true})
+(def bases
+  "Map of base keys to definition maps."
+  (reduce install-base
+          {}
+          [base16
+           base32
+           base32hex
+           base58btc
+           base64url
+           base64urlpad]))
 
 
-(register!
-  {:key :base32hex
-   :prefix "v"
-   :alphabet "0123456789abcdefghijklmnopqrstuv"
-   :case-insensitive? true})
-
-
-(register!
-  {:key :base58btc
-   :prefix "z"
-   :alphabet "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"})
-
-
-(register!
-  {:key :base64
-   :prefix "?" ; FIXME: real prefix
-   :formatter (fn base64-format
-                [data]
-                #?(:clj
-                   (-> (Base64/getUrlEncoder)
-                       (.withoutPadding)
-                       (.encodeToString data))))
-   :parser (fn base64-parse
-             [string]
-             #?(:clj
-                (.decode (Base64/getUrlDecoder) string)))})
+(def ^:private prefix->base
+  "Cached map of prefix characters to base keys."
+  (into {} (map (juxt (comp :prefix val) key)) bases))
 
 
 
@@ -176,14 +213,15 @@
   string without a prefix."
   ^String
   [base-key ^bytes data]
-  (when (zero? (count data))
+  (when-not (keyword? base-key)
+    (throw (ex-info "base-key must be a keyword" {:base base-key})))
+  (when (zero? (alength data))
     (throw (ex-info "Cannot format empty data as a multibase string"
                     {:base base-key})))
-  (when-not (contains? encodings base-key)
-    (throw (ex-info (str (pr-str base-key)
-                         " is not a supported multibase encoding")
-                    {:base base-key})))
-  (let [formatter (base->formatter base-key)]
+  (let [formatter (get-in bases [base-key :formatter])]
+    (when-not formatter
+      (throw (ex-info (str (name base-key) " does not have a supported multibase formatter")
+                      {:base base-key})))
     (formatter data)))
 
 
@@ -192,7 +230,7 @@
   string, prefixed with the base constant."
   ^String
   [base-key ^bytes data]
-  (let [prefix (base->prefix base-key)]
+  (let [prefix (get codes base-key)]
     (str prefix (format* base-key data))))
 
 
@@ -215,7 +253,12 @@
   the decoded byte array."
   ^bytes
   [base-key string]
-  (let [parser (base->parser base-key)]
+  (when-not (keyword? base-key)
+    (throw (ex-info "base-key must be a keyword" {:base base-key})))
+  (let [parser (get-in bases [base-key :parser])]
+    (when-not parser
+      (throw (ex-info (str (name base-key) " does not have a supported multibase parser")
+                      {:base base-key})))
     (parser string)))
 
 

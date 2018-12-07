@@ -48,12 +48,12 @@
                :BASE16 "F446563656E7472616C697A652065766572797468696E672121"
                :base32 "birswgzloorzgc3djpjssazlwmvzhs5dinfxgoijb"
                :BASE32 "BIRSWGZLOORZGC3DJPJSSAZLWMVZHS5DINFXGOIJB"
-               ;:base32pad "cirswgzloorzgc3djpjssazlwmvzhs5dinfxgoijb"
-               ;:BASE32PAD "CIRSWGZLOORZGC3DJPJSSAZLWMVZHS5DINFXGOIJB"
+               :base32pad "cirswgzloorzgc3djpjssazlwmvzhs5dinfxgoijb"
+               :BASE32PAD "CIRSWGZLOORZGC3DJPJSSAZLWMVZHS5DINFXGOIJB"
                :base32hex "v8him6pbeehp62r39f9ii0pbmclp7it38d5n6e891"
                :BASE32HEX "V8HIM6PBEEHP62R39F9II0PBMCLP7IT38D5N6E891"
-               ;:base32hexpad "t8him6pbeehp62r39f9ii0pbmclp7it38d5n6e891"
-               ;:BASE32HEXPAD "T8HIM6PBEEHP62R39F9II0PBMCLP7IT38D5N6E891"
+               :base32hexpad "t8him6pbeehp62r39f9ii0pbmclp7it38d5n6e891"
+               :BASE32HEXPAD "T8HIM6PBEEHP62R39F9II0PBMCLP7IT38D5N6E891"
                ;:base32z "het1sg3mqqt3gn5djxj11y3msci3817depfzgqejb"
                ;:base58flickr "Ztwe7gVTeK8wswS1gf8hrgAua9fcw9reboD"
                :base58btc "zUXE7GvtEk8XTXs1GF8HSGbVA9FCX9SEBPe"
@@ -76,12 +76,12 @@
                :BASE16 "F796573206D616E692021"
                :base32 "bpfsxgidnmfxgsibb"
                :BASE32 "BPFSXGIDNMFXGSIBB"
-               ;:base32pad "cpfsxgidnmfxgsibb"
-               ;:BASE32PAD "CPFSXGIDNMFXGSIBB"
+               :base32pad "cpfsxgidnmfxgsibb"
+               :BASE32PAD "CPFSXGIDNMFXGSIBB"
                :base32hex "vf5in683dc5n6i811"
                :BASE32HEX "VF5IN683DC5N6I811"
-               ;:base32hexpad "tf5in683dc5n6i811"
-               ;:BASE32HEXPAD "TF5IN683DC5N6I811"
+               :base32hexpad "tf5in683dc5n6i811"
+               :BASE32HEXPAD "TF5IN683DC5N6I811"
                ;:base32z "hxf1zgedpcfzg1ebb"
                ;:base58flickr "Z7Pznk19XTTzBtx"
                :base58btc "z7paNL19xttacUY"
@@ -104,12 +104,12 @@
                :BASE16 "F68656C6C6F20776F726C64"
                :base32 "bnbswy3dpeb3w64tmmq"
                :BASE32 "BNBSWY3DPEB3W64TMMQ"
-               ;:base32pad "cnbswy3dpeb3w64tmmq======"
-               ;:BASE32PAD "CNBSWY3DPEB3W64TMMQ======"
+               :base32pad "cnbswy3dpeb3w64tmmq======"
+               :BASE32PAD "CNBSWY3DPEB3W64TMMQ======"
                :base32hex "vd1imor3f41rmusjccg"
                :BASE32HEX "VD1IMOR3F41RMUSJCCG"
-               ;:base32hexpad "td1imor3f41rmusjccg======"
-               ;:BASE32HEXPAD "TD1IMOR3F41RMUSJCCG======"
+               :base32hexpad "td1imor3f41rmusjccg======"
+               :BASE32HEXPAD "TD1IMOR3F41RMUSJCCG======"
                ;:base32z "hpb1sa5dxrb5s6hucco"
                ;:base58flickr "ZrTu1dk6cWsRYjYu"
                :base58btc "zStV1DL6CwTryKyV"
@@ -134,11 +134,9 @@
     (testing "base32hex vs BASE32HEX"
       (is (bytes= data (mbase/parse "vd1imor3f41RMUSJCCG")))
       (is (bytes= data (mbase/parse "Vd1imor3f41RMUSJCCG"))))
-    #_
     (testing "base32pad vs BASE32PAD"
       (is (bytes= data (mbase/parse "cnbswy3dpeB3W64TMMQ======")))
       (is (bytes= data (mbase/parse "Cnbswy3dpeB3W64TMMQ======"))))
-    #_
     (testing "base32hexpad vs BASE32HEXPAD"
       (is (bytes= data (mbase/parse "td1imor3f41RMUSJCCG======")))
       (is (bytes= data (mbase/parse "Td1imor3f41RMUSJCCG======"))))))

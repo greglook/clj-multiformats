@@ -5,7 +5,9 @@
 
   https://github.com/multiformats/multibase"
   (:refer-clojure :exclude [bases format])
-  #?(:cljs (:require-macros multiformats.base))
+  #?(:cljs
+     (:require-macros
+       [multiformats.base :refer [defbase]]))
   (:require
     [alphabase.bytes :as b]
     [alphabase.core :as abc]
@@ -75,7 +77,7 @@
   [^bytes data]
   #?(:clj
      (reverse-octets (BinaryCodec/toAsciiString data))
-     :default
+     :default ; OPTIMIZE: better cljs implementation
      (reduce
        (fn build-str
          [string i]
@@ -97,7 +99,7 @@
   [^String string]
   #?(:clj
      (.toByteArray (BinaryCodec.) (reverse-octets string))
-     :default
+     :default ; OPTIMIZE: better cljs implementation
      (let [string (if (zero? (rem (count string) 8))
                     string
                     (str (str/join (repeat (- 8 (rem (count string) 8)) "0"))
@@ -124,22 +126,14 @@
 
 ;; ### Octal
 
-(defbase base8
-  :alphabet "01234567")
-
-
-;; ### Decimal
-
-(defbase base10
-  :formatter (fn format-decimal
-               [^bytes data]
-               ; TODO: implement
-               ,,,)
-  :parser (fn parse-decimal
-            [^String string]
-            ; TODO: implement
-            ,,,
-            ))
+(let [alphabet "01234567"]
+  (defbase base8
+    :formatter (fn format-octal
+                 [^bytes data]
+                 (abc/encode alphabet data))
+    :parser (fn parse-octal
+              [^String string]
+              (abc/decode alphabet string))))
 
 
 ;; ### Hexadecimal
@@ -149,7 +143,7 @@
   [^bytes data]
   #?(:clj
      (Hex/encodeHexString data true)
-     :default
+     :default ; OPTIMIZE: better cljs implementation
      (abc/encode "0123456789abcdef" data)))
 
 
@@ -158,7 +152,7 @@
   [^String string]
   #?(:clj
      (Hex/decodeHex string)
-     :default
+     :default ; OPTIMIZE: better cljs implementation
      (abc/decode "0123456789abcdef" (str/lower-case string))))
 
 
@@ -183,7 +177,11 @@
          [^bytes data]
          (cond-> (.encodeToString codec data)
            lower? (str/lower-case)
-           (not pad?) (str/replace #"=+$" ""))))))
+           (not pad?) (str/replace #"=+$" ""))))
+     :default ; TODO: cljs implementation
+     (fn format
+       [data]
+       (throw (ex-info "NYI" {})))))
 
 
 (defn- base32-parser
@@ -193,7 +191,11 @@
      (let [codec (Base32. 0 nil hex? (int \=))]
        (fn parse
          [^String string]
-         (.decode codec string)))))
+         (.decode codec string)))
+     :default ; TODO: cljs implementation
+     (fn parse
+       [string]
+       (throw (ex-info "NYI" {})))))
 
 
 (defbase base32
@@ -239,8 +241,14 @@
 
 ;; ### Base58
 
-(defbase base58btc
-  :alphabet "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
+(let [alphabet "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"]
+  (defbase base58btc
+    :formatter (fn format-base58btc
+                 [^bytes data]
+                 (abc/encode alphabet data))
+    :parser (fn parse-base58btc
+              [^String string]
+              (abc/decode alphabet string))))
 
 
 ;; ### Base64 (RFC 4648)
@@ -251,7 +259,6 @@
   [url? padding?]
   (fn format
     [^bytes data]
-    ; TODO: cljs implementation
     #?(:clj
        (let [encoded (if url?
                        (Base64/encodeBase64URLSafeString data)
@@ -266,15 +273,18 @@
            (and (not url?) (not padding?))
            (str/replace encoded #"=+$" "")
 
-           :else encoded)))))
+           :else encoded))
+       :default ; TODO: cljs implementation
+       (throw (ex-info "NYI" {})))))
 
 
 (defn- parse-base64
   "Parse a string of base64-encoded bytes."
   [^String string]
-  ; TODO: cljs implementation
   #?(:clj
-     (Base64/decodeBase64 string)))
+     (Base64/decodeBase64 string)
+     :default ; TODO: cljs implementation
+     (throw (ex-info "NYI" {}))))
 
 
 (defbase base64
@@ -300,34 +310,6 @@
 
 ;; ## Lookup Functions
 
-(defn- base-formatter
-  "Construct an encoding function from base parameters."
-  [params]
-  (or (:formatter params)
-      (when-let [alphabet (:alphabet params)]
-        (fn format-alphabet
-          [data]
-          (abc/encode alphabet data)))
-      (throw (ex-info (str "Base " (:key params)
-                           " does not specify an alphabet "
-                           " or a formatter function.")
-                      {:base (:key params)}))))
-
-
-(defn- base-parser
-  "Construct a decoding function from base params."
-  [params]
-  (or (:parser params)
-      (when-let [alphabet (:alphabet params)]
-        (fn parse-alphabet
-          [string]
-          (abc/decode alphabet string)))
-      (throw (ex-info (str "Base " (:key params)
-                           " does not specify an alphabet "
-                           " or a parser function.")
-                      {:base (:key params)}))))
-
-
 (defn- install-base
   "Expands a base definition map into one or more definitions and adds them to
   the given map of bases. Returns the updated map, or throws an exception if
@@ -338,25 +320,20 @@
     (when-not (keyword? base-key)
       (throw (ex-info (str "Base registered with invalid key: "
                            (pr-str base-key))
-                      {:base base-key})))
+                      {:params params})))
     (when-not prefix
       (throw (ex-info (str "Base " base-key " has no assigned prefix code!")
-                      {:base base-key})))
+                      {:params params})))
     (when (contains? base-map base-key)
       (throw (ex-info (str "Base " base-key " is already registered!")
-                      {:base base-key})))
-    (when-let [extant (ffirst (filter (comp #{prefix} :prefix val) base-map))]
-      (throw (ex-info (str "Prefix " (pr-str prefix)
-                           " is already registered to " extant)
-                      {:base base-key
-                       :prefix prefix})))
-    (assoc base-map
-           base-key
-           (-> params
-               (dissoc :key)
-               (assoc :prefix prefix
-                      :formatter (base-formatter params)
-                      :parser (base-parser params))))))
+                      {:params params})))
+    (when-not (:formatter params)
+      (throw (ex-info (str "Base " base-key " does not specify a formatter function.")
+                      {:params params})))
+    (when-not (:parser params)
+      (throw (ex-info (str "Base " base-key " does not specify a parser function.")
+                      {:params params})))
+    (assoc base-map base-key (assoc params :prefix prefix))))
 
 
 (def bases
@@ -365,7 +342,6 @@
           {}
           [base2
            base8
-           ;base10
            base16
            BASE16
            base32

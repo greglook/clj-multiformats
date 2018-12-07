@@ -8,14 +8,27 @@
     [multiformats.base :as mbase]))
 
 
-(defn- string-bytes
-  "Get a UTF-8 byte array from a string."
-  [string]
-  (#?(:clj .getBytes, :cljs crypt/stringToUtf8ByteArray) string))
+(deftest base-setup
+  #?(:clj
+     (testing "install-base"
+       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"registered with invalid key"
+             (#'mbase/install-base {} {:key 123})))
+       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"has no assigned prefix code"
+             (#'mbase/install-base {} {:key :foo})))
+       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"is already registered"
+             (#'mbase/install-base {:base1 {}} {:key :base1})))
+       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"does not specify a formatter function"
+             (#'mbase/install-base {} {:key :base1})))
+       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"does not specify a parser function"
+             (#'mbase/install-base {} {:key :base1, :formatter identity}))))))
 
 
 (deftest arg-validation
   (testing "formatting"
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
+                             :cljs js/Error)
+                          #"must be a keyword"
+          (mbase/format* 123 (b/byte-array 1))))
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
                              :cljs js/Error)
                           #"not format empty data"
@@ -25,6 +38,14 @@
                           #"foo does not have a supported multibase formatter"
           (mbase/format :foo (b/byte-array 1)))))
   (testing "parsing"
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
+                             :cljs js/Error)
+                          #"must be a keyword"
+          (mbase/parse* 123 "abc")))
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
+                             :cljs js/Error)
+                          #"foo does not have a supported multibase parser"
+          (mbase/parse* :foo "abc")))
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
                              :cljs js/Error)
                           #"is too short to be multibase-formatted data"
@@ -37,6 +58,12 @@
                              :cljs js/Error)
                           #"prefix \"x\" does not map to a supported multibase encoding"
           (mbase/parse "xabc")))))
+
+
+(defn- string-bytes
+  "Get a UTF-8 byte array from a string."
+  [string]
+  (#?(:clj .getBytes, :cljs crypt/stringToUtf8ByteArray) string))
 
 
 (deftest example-1

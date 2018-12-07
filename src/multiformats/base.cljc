@@ -11,7 +11,9 @@
   (:require
     [alphabase.bytes :as b]
     [alphabase.core :as abc]
-    [clojure.string :as str])
+    [clojure.string :as str]
+    #?@(:cljs [[goog.crypt :as crypt]
+               ,,,]))
   #?(:clj
      (:import
        (org.apache.commons.codec.binary
@@ -143,8 +145,8 @@
   [^bytes data]
   #?(:clj
      (Hex/encodeHexString data true)
-     :default ; OPTIMIZE: better cljs implementation
-     (abc/encode "0123456789abcdef" data)))
+     :cljs
+     (crypt/byteArrayToHex data)))
 
 
 (defn- parse-hex
@@ -152,8 +154,8 @@
   [^String string]
   #?(:clj
      (Hex/decodeHex string)
-     :default ; OPTIMIZE: better cljs implementation
-     (abc/decode "0123456789abcdef" (str/lower-case string))))
+     :cljs
+     (crypt/hexToByteArray string)))
 
 
 (defbase base16

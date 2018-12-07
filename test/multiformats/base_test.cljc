@@ -1,4 +1,7 @@
 (ns multiformats.base-test
+  "Test cases drawn from:
+  - https://tools.ietf.org/html/rfc4648#section-10
+  - https://github.com/eth-r/multibase/tree/master/tests"
   (:require
     [alphabase.bytes :as b :refer [bytes=]]
     [clojure.string :as str]
@@ -64,6 +67,38 @@
   "Get a UTF-8 byte array from a string."
   [string]
   (#?(:clj .getBytes, :cljs crypt/stringToUtf8ByteArray) string))
+
+
+(deftest rfc-vectors
+  (doseq [[base input encoded]
+          [[:base64pad "f" "MZg=="]
+           [:base64pad "fo" "MZm8="]
+           [:base64 "foo" "mZm9v"]
+           [:base64pad "foob" "MZm9vYg=="]
+           [:base64pad "fooba" "MZm9vYmE="]
+           [:base64 "foobar" "mZm9vYmFy"]
+           [:base32pad "f" "cmy======"]
+           [:BASE32PAD "fo" "CMZXQ===="]
+           [:base32pad "foo" "cmzxw6==="]
+           [:BASE32PAD "foob" "CMZXW6YQ="]
+           [:base32 "fooba" "bmzxw6ytb"]
+           [:BASE32 "foobar" "BMZXW6YTBOI"]
+           [:base32hexpad "f" "tco======"]
+           [:BASE32HEXPAD "fo" "TCPNG===="]
+           [:BASE32HEXPAD "foo" "TCPNMU==="]
+           [:base32hex "foob" "vcpnmuog"]
+           [:BASE32HEX "fooba" "VCPNMUOJ1"]
+           [:BASE32HEXPAD "foobar" "TCPNMUOJ1E8======"]
+           [:BASE16 "f" "F66"]
+           [:BASE16 "fo" "F666F"]
+           [:BASE16 "foo" "F666F6F"]
+           [:BASE16 "foob" "F666F6F62"]
+           [:BASE16 "fooba" "F666F6F6261"]
+           [:BASE16 "foobar" "F666F6F626172"]]]
+    (testing (name base)
+      (let [data (string-bytes input)]
+        (is (= encoded (mbase/format base data)))
+        (is (bytes= data (mbase/parse encoded)))))))
 
 
 (deftest example-1

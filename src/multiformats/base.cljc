@@ -5,6 +5,7 @@
 
   https://github.com/multiformats/multibase"
   (:refer-clojure :exclude [bases format])
+  #?(:cljs (:require-macros multiformats.base))
   (:require
     [alphabase.bytes :as b]
     [alphabase.core :as abc]
@@ -116,68 +117,59 @@
        buffer)))
 
 
-(def ^:private base2
-  {:key :base2
-   :formatter format-binary
-   :parser parse-binary})
+(defbase base2
+  :formatter format-binary
+  :parser parse-binary)
 
 
 ;; ### Octal
 
-(def ^:private base8
-  {:key :base8
-   :alphabet "01234567"})
+(defbase base8
+  :alphabet "01234567")
 
 
 ;; ### Decimal
 
-(def ^:private base10
-  {:key :base8
-   :formatter (fn format-decimal
-                [^bytes data]
-                ; TODO: implement
-                ,,,)
-   :parser (fn parse-decimal
-             [^String string]
-             ; TODO: implement
-             ,,,
-             )})
+(defbase base10
+  :formatter (fn format-decimal
+               [^bytes data]
+               ; TODO: implement
+               ,,,)
+  :parser (fn parse-decimal
+            [^String string]
+            ; TODO: implement
+            ,,,
+            ))
 
 
 ;; ### Hexadecimal
 
 (defn- format-hex
   "Format byte data as a hexadecimal-encoded string."
-  [^bytes data lower?]
+  [^bytes data]
   #?(:clj
-     (Hex/encodeHexString data lower?)
+     (Hex/encodeHexString data true)
      :default
-     (if lower?
-       (abc/encode "0123456789abcdef" data)
-       (abc/encode "0123456789ABCDEF" data))))
+     (abc/encode "0123456789abcdef" data)))
 
 
 (defn- parse-hex
   "Parse a hexadecimal-encoded string into bytes."
-  [^String string lower?]
+  [^String string]
   #?(:clj
      (Hex/decodeHex string)
      :default
-     (if lower?
-       (abc/decode "0123456789abcdef" (str/lower-case string))
-       (abc/decode "0123456789ABCDEF" (str/upper-case string)))))
+     (abc/decode "0123456789abcdef" (str/lower-case string))))
 
 
-(def ^:private base16
-  {:key :base16
-   :formatter #(format-hex % true)
-   :parser #(parse-hex % true)})
+(defbase base16
+  :formatter format-hex
+  :parser parse-hex)
 
 
-(def ^:private BASE16
-  {:key :BASE16
-   :formatter #(format-hex % false)
-   :parser #(parse-hex % false)})
+(defbase BASE16
+  :formatter (comp str/upper-case format-hex)
+  :parser parse-hex)
 
 
 ;; ### Base32 (RFC 4648)
@@ -247,9 +239,8 @@
 
 ;; ### Base58
 
-(def ^:private base58btc
-  {:key :base58btc
-   :alphabet "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"})
+(defbase base58btc
+  :alphabet "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
 
 
 ;; ### Base64 (RFC 4648)
@@ -286,38 +277,28 @@
      (Base64/decodeBase64 string)))
 
 
-(def ^:private base64
-  {:key :base64
-   :formatter (base64-formatter false false)
-   :parser parse-base64})
+(defbase base64
+  :formatter (base64-formatter false false)
+  :parser parse-base64)
 
 
-(def ^:private base64pad
-  {:key :base64pad
-   :formatter (base64-formatter false true)
-   :parser parse-base64})
+(defbase base64pad
+  :formatter (base64-formatter false true)
+  :parser parse-base64)
 
 
-(def ^:private base64url
-  {:key :base64url
-   :formatter (base64-formatter true false)
-   :parser parse-base64})
+(defbase base64url
+  :formatter (base64-formatter true false)
+  :parser parse-base64)
 
 
-(def ^:private base64urlpad
-  {:key :base64urlpad
-   :formatter (base64-formatter true true)
-   :parser parse-base64})
+(defbase base64urlpad
+  :formatter (base64-formatter true true)
+  :parser parse-base64)
 
 
 
 ;; ## Lookup Functions
-
-(defn- lower-case?
-  "Test if the given string is all lower-case."
-  [s]
-  (= s (str/lower-case s)))
-
 
 (defn- base-formatter
   "Construct an encoding function from base parameters."
@@ -338,21 +319,9 @@
   [params]
   (or (:parser params)
       (when-let [alphabet (:alphabet params)]
-        (cond
-          (not (:case-insensitive params))
-          (fn parse-alphabet
-            [string]
-            (abc/decode alphabet string))
-
-          (lower-case? alphabet)
-          (fn parse-lower
-            [string]
-            (abc/decode alphabet (str/lower-case string)))
-
-          :else
-          (fn parse-upper
-            [string]
-            (abc/decode alphabet (str/upper-case string)))))
+        (fn parse-alphabet
+          [string]
+          (abc/decode alphabet string)))
       (throw (ex-info (str "Base " (:key params)
                            " does not specify an alphabet "
                            " or a parser function.")
@@ -381,19 +350,13 @@
                            " is already registered to " extant)
                       {:base base-key
                        :prefix prefix})))
-    (let [definition (-> params
-                         (dissoc :key)
-                         (assoc :prefix prefix
-                                :formatter (base-formatter params)
-                                :parser (base-parser params)))
-          base-map (assoc base-map base-key definition)]
-      (if (and (:case-insensitive params)
-               (lower-case? prefix))
-        (recur base-map
-               (assoc params
-                      :key (keyword (str/upper-case (name base-key)))
-                      :alphabet (str/upper-case (:alphabet params))))
-        base-map))))
+    (assoc base-map
+           base-key
+           (-> params
+               (dissoc :key)
+               (assoc :prefix prefix
+                      :formatter (base-formatter params)
+                      :parser (base-parser params))))))
 
 
 (def bases

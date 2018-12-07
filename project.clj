@@ -25,7 +25,14 @@
    [meta-merge "1.0.0"]]
 
   :dependencies
-  [[mvxcvi/alphabase "1.0.0"]]
+  [[mvxcvi/alphabase "1.0.0"]
+   [commons-codec "1.11"]]
+
+  :hiera
+  {:cluster-depth 1
+   ;:vertical false
+   :show-external true
+   :ignore-ns #{clojure}}
 
   :cljsbuild
   {:builds [{:id "test"

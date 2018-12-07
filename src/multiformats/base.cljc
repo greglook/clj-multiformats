@@ -11,7 +11,11 @@
     [clojure.string :as str])
   #?(:clj
      (:import
-       java.util.Base64)))
+       (org.apache.commons.codec.binary
+         Base32
+         Base64
+         BinaryCodec
+         Hex))))
 
 
 (def codes
@@ -21,6 +25,7 @@
    :base2         \0
    :base8         \7
    :base10        \9
+   ; Hexadecimal (RFC 4648)
    :base16        \f
    :BASE16        \F
    ; Base32 (RFC 4648)
@@ -33,8 +38,8 @@
    :base32hexpad  \t
    :BASE32HEXPAD  \T
    ; Base58
-   :base58flickr  \Z   ; Base58 Flicker
-   :base58btc     \z   ; Base58 Bitcoin
+   :base58btc     \z
+   :base58flickr  \Z
    ; Base64 (RFC 4648)
    :base64        \m
    :base64pad     \M
@@ -45,7 +50,7 @@
 
 ;; ## Base Encodings
 
-;; ### Numeric Bases
+;; ### Binary
 
 (defn- format-binary
   "Format some byte data into a binary-encoded string."
@@ -94,10 +99,14 @@
    :parser parse-binary})
 
 
+;; ### Octal
+
 (def ^:private base8
   {:key :base8
    :alphabet "01234567"})
 
+
+;; ### Decimal
 
 (def ^:private base10
   {:key :base8
@@ -112,6 +121,8 @@
              )})
 
 
+;; ### Hexadecimal
+
 (def ^:private base16
   {:key :base16
    ; OPTIMIZE: probably more efficient ways to do this
@@ -119,7 +130,7 @@
    :case-insensitive true})
 
 
-;; ### Base32 - RFC 4648
+;; ### Base32 (RFC 4648)
 
 (def ^:private base32
   {:key :base32
@@ -140,7 +151,7 @@
    :alphabet "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"})
 
 
-;; ### Base64 - RFC 4648
+;; ### Base64 (RFC 4648)
 
 (defn- base64-formatter
   "Construct a new function to format bytes as base64 with normal or URL
@@ -150,13 +161,20 @@
     [^bytes data]
     ; TODO: cljs implementation
     #?(:clj
-       (-> (if url?
-             (Base64/getUrlEncoder)
-             (Base64/getEncoder))
-           (cond->
-             (not padding?)
-             (.withoutPadding))
-           (.encodeToString data)))))
+       (let [encoded (if url?
+                       (Base64/encodeBase64URLSafeString data)
+                       (Base64/encodeBase64String data))]
+         (cond
+           (and url? padding?)
+           (str encoded (case (rem (alength data) 3)
+                          2 "="
+                          1 "=="
+                          nil))
+
+           (and (not url?) (not padding?))
+           (str/replace encoded #"=+$" "")
+
+           :else encoded)))))
 
 
 (defn- parse-base64
@@ -164,15 +182,7 @@
   [^String string]
   ; TODO: cljs implementation
   #?(:clj
-     (.decode (Base64/getDecoder) string)))
-
-
-(defn- parse-base64url
-  "Parse a string of base64url-encoded bytes."
-  [^String string]
-  ; TODO: cljs implementation
-  #?(:clj
-     (.decode (Base64/getUrlDecoder) string)))
+     (Base64/decodeBase64 string)))
 
 
 (def ^:private base64
@@ -190,13 +200,13 @@
 (def ^:private base64url
   {:key :base64url
    :formatter (base64-formatter true false)
-   :parser parse-base64url})
+   :parser parse-base64})
 
 
 (def ^:private base64urlpad
   {:key :base64urlpad
    :formatter (base64-formatter true true)
-   :parser parse-base64url})
+   :parser parse-base64})
 
 
 

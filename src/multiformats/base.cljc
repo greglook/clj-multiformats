@@ -50,6 +50,13 @@
 
 ;; ## Base Encodings
 
+(defmacro ^:private defbase
+  "Define a new base map in a var."
+  [base-sym & {:as params}]
+  `(def ~(vary-meta base-sym assoc :private true)
+     (assoc ~params :key ~(keyword base-sym))))
+
+
 ;; ### Binary
 
 (defn- reverse-octets
@@ -175,16 +182,67 @@
 
 ;; ### Base32 (RFC 4648)
 
-(def ^:private base32
-  {:key :base32
-   :alphabet "abcdefghijklmnopqrstuvwxyz234567"
-   :case-insensitive true})
+(defn- base32-formatter
+  "Constructs a function which formats byte data as a base32-encoded string."
+  [hex? lower? pad?]
+  #?(:clj
+     (let [codec (Base32. 0 nil hex? (int \=))]
+       (fn format
+         [^bytes data]
+         (cond-> (.encodeToString codec data)
+           lower? (str/lower-case)
+           (not pad?) (str/replace #"=+$" ""))))))
 
 
-(def ^:private base32hex
-  {:key :base32hex
-   :alphabet "0123456789abcdefghijklmnopqrstuv"
-   :case-insensitive true})
+(defn- base32-parser
+  "Constructs a function which parses a base32-encoded string into bytes."
+  [hex?]
+  #?(:clj
+     (let [codec (Base32. 0 nil hex? (int \=))]
+       (fn parse
+         [^String string]
+         (.decode codec string)))))
+
+
+(defbase base32
+  :formatter (base32-formatter false true false)
+  :parser (base32-parser false))
+
+
+(defbase BASE32
+  :formatter (base32-formatter false false false)
+  :parser (base32-parser false))
+
+
+(defbase base32pad
+  :formatter (base32-formatter false true true)
+  :parser (base32-parser false))
+
+
+(defbase BASE32PAD
+  :formatter (base32-formatter false false true)
+  :parser (base32-parser false))
+
+
+(defbase base32hex
+  :formatter (base32-formatter true true false)
+  :parser (base32-parser true))
+
+
+(defbase BASE32HEX
+  :formatter (base32-formatter true false false)
+  :parser (base32-parser true))
+
+
+(defbase base32hexpad
+  :formatter (base32-formatter true true true)
+  :parser (base32-parser true))
+
+
+(defbase BASE32HEXPAD
+  :formatter (base32-formatter true false true)
+  :parser (base32-parser true))
+
 
 
 ;; ### Base58
@@ -348,7 +406,13 @@
            base16
            BASE16
            base32
+           BASE32
+           base32pad
+           BASE32PAD
            base32hex
+           BASE32HEX
+           base32hexpad
+           BASE32HEXPAD
            base58btc
            base64
            base64pad

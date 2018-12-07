@@ -52,45 +52,61 @@
 
 ;; ### Binary
 
+(defn- reverse-octets
+  "Reverse the octets (8-bit segments) a binary string."
+  [string]
+  (loop [octets nil
+         i 0]
+    (if (< i (count string))
+      (recur (cons (subs string i (+ i 8)) octets) (+ i 8))
+      (apply str octets))))
+
+
 (defn- format-binary
   "Format some byte data into a binary-encoded string."
   [^bytes data]
-  (reduce
-    (fn build-str
-      [string i]
-      (let [x (b/get-byte data i)
-            octet (str (if (zero? (bit-and x 0x80)) "0" "1")
-                       (if (zero? (bit-and x 0x40)) "0" "1")
-                       (if (zero? (bit-and x 0x20)) "0" "1")
-                       (if (zero? (bit-and x 0x10)) "0" "1")
-                       (if (zero? (bit-and x 0x08)) "0" "1")
-                       (if (zero? (bit-and x 0x04)) "0" "1")
-                       (if (zero? (bit-and x 0x02)) "0" "1")
-                       (if (zero? (bit-and x 0x01)) "0" "1"))]
-        (str string octet)))
-    "" (range (alength data))))
+  #?(:clj
+     (reverse-octets (BinaryCodec/toAsciiString data))
+     :default
+     (reduce
+       (fn build-str
+         [string i]
+         (let [x (b/get-byte data i)
+               octet (str (if (zero? (bit-and x 0x80)) "0" "1")
+                          (if (zero? (bit-and x 0x40)) "0" "1")
+                          (if (zero? (bit-and x 0x20)) "0" "1")
+                          (if (zero? (bit-and x 0x10)) "0" "1")
+                          (if (zero? (bit-and x 0x08)) "0" "1")
+                          (if (zero? (bit-and x 0x04)) "0" "1")
+                          (if (zero? (bit-and x 0x02)) "0" "1")
+                          (if (zero? (bit-and x 0x01)) "0" "1"))]
+           (str string octet)))
+       "" (range (alength data)))))
 
 
 (defn- parse-binary
   "Parse a string of binary-encoded bytes."
   [^String string]
-  (let [string (if (zero? (rem (count string) 8))
-                 string
-                 (str (str/join (repeat (- 8 (rem (count string) 8)) "0"))
-                      string))
-        buffer (b/byte-array (int (/ (count string) 8)))]
-    (dotimes [i (alength buffer)]
-      (let [octet (subs string (* i 8) (* (inc i) 8))
-            x (bit-or (if (= "1" (str (nth octet 0))) 0x80 0x00)
-                      (if (= "1" (str (nth octet 1))) 0x40 0x00)
-                      (if (= "1" (str (nth octet 2))) 0x20 0x00)
-                      (if (= "1" (str (nth octet 3))) 0x10 0x00)
-                      (if (= "1" (str (nth octet 4))) 0x08 0x00)
-                      (if (= "1" (str (nth octet 5))) 0x04 0x00)
-                      (if (= "1" (str (nth octet 6))) 0x02 0x00)
-                      (if (= "1" (str (nth octet 7))) 0x01 0x00))]
-        (b/set-byte buffer i x)))
-    buffer))
+  #?(:clj
+     (.toByteArray (BinaryCodec.) (reverse-octets string))
+     :default
+     (let [string (if (zero? (rem (count string) 8))
+                    string
+                    (str (str/join (repeat (- 8 (rem (count string) 8)) "0"))
+                         string))
+           buffer (b/byte-array (int (/ (count string) 8)))]
+       (dotimes [i (alength buffer)]
+         (let [octet (subs string (* i 8) (* (inc i) 8))
+               x (bit-or (if (= "1" (subs octet 0 1)) 0x80 0x00)
+                         (if (= "1" (subs octet 1 2)) 0x40 0x00)
+                         (if (= "1" (subs octet 2 3)) 0x20 0x00)
+                         (if (= "1" (subs octet 3 4)) 0x10 0x00)
+                         (if (= "1" (subs octet 4 5)) 0x08 0x00)
+                         (if (= "1" (subs octet 5 6)) 0x04 0x00)
+                         (if (= "1" (subs octet 6 7)) 0x02 0x00)
+                         (if (= "1" (subs octet 7 8)) 0x01 0x00))]
+           (b/set-byte buffer i x)))
+       buffer)))
 
 
 (def ^:private base2

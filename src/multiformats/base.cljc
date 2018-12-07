@@ -139,11 +139,38 @@
 
 ;; ### Hexadecimal
 
+(defn- format-hex
+  "Format byte data as a hexadecimal-encoded string."
+  [^bytes data lower?]
+  #?(:clj
+     (Hex/encodeHexString data lower?)
+     :default
+     (if lower?
+       (abc/encode "0123456789abcdef" data)
+       (abc/encode "0123456789ABCDEF" data))))
+
+
+(defn- parse-hex
+  "Parse a hexadecimal-encoded string into bytes."
+  [^String string lower?]
+  #?(:clj
+     (Hex/decodeHex string)
+     :default
+     (if lower?
+       (abc/decode "0123456789abcdef" (str/lower-case string))
+       (abc/decode "0123456789ABCDEF" (str/upper-case string)))))
+
+
 (def ^:private base16
   {:key :base16
-   ; OPTIMIZE: probably more efficient ways to do this
-   :alphabet "0123456789abcdef"
-   :case-insensitive true})
+   :formatter #(format-hex % true)
+   :parser #(parse-hex % true)})
+
+
+(def ^:private BASE16
+  {:key :BASE16
+   :formatter #(format-hex % false)
+   :parser #(parse-hex % false)})
 
 
 ;; ### Base32 (RFC 4648)
@@ -319,6 +346,7 @@
            base8
            ;base10
            base16
+           BASE16
            base32
            base32hex
            base58btc

@@ -41,7 +41,6 @@
 
 (deftest example-1
   (let [data (string-bytes "Decentralize everything!!")]
-    #_
     (testing "base2"
       (let [encoded "001000100011001010110001101100101011011100111010001110010011000010110110001101001011110100110010100100000011001010111011001100101011100100111100101110100011010000110100101101110011001110010000100100001"]
         (is (= encoded (mbase/format :base2 data)))
@@ -133,7 +132,6 @@
 
 (deftest example-2
   (let [data (string-bytes "yes mani !")]
-    #_
     (testing "base2"
       (let [encoded "001111001011001010111001100100000011011010110000101101110011010010010000000100001"]
         (is (= encoded (mbase/format :base2 data)))
@@ -226,7 +224,6 @@
 #_ ; FIXME: various broken bases
 (deftest example-3
   (let [data (string-bytes "hello world")]
-    #_
     (testing "base2"
       (let [encoded "00110100001100101011011000110110001101111001000000111011101101111011100100110110001100100"]
         (is (= encoded (mbase/format :base2 data)))

@@ -47,47 +47,51 @@
 
 ;; ### Numeric Bases
 
+(defn- format-binary
+  "Format some byte data into a binary-encoded string."
+  [^bytes data]
+  (reduce
+    (fn build-str
+      [string i]
+      (let [x (b/get-byte data i)
+            octet (str (if (zero? (bit-and x 0x80)) "0" "1")
+                       (if (zero? (bit-and x 0x40)) "0" "1")
+                       (if (zero? (bit-and x 0x20)) "0" "1")
+                       (if (zero? (bit-and x 0x10)) "0" "1")
+                       (if (zero? (bit-and x 0x08)) "0" "1")
+                       (if (zero? (bit-and x 0x04)) "0" "1")
+                       (if (zero? (bit-and x 0x02)) "0" "1")
+                       (if (zero? (bit-and x 0x01)) "0" "1"))]
+        (str string octet)))
+    "" (range (alength data))))
+
+
+(defn- parse-binary
+  "Parse a string of binary-encoded bytes."
+  [^String string]
+  (let [string (if (zero? (rem (count string) 8))
+                 string
+                 (str (str/join (repeat (- 8 (rem (count string) 8)) "0"))
+                      string))
+        buffer (b/byte-array (int (/ (count string) 8)))]
+    (dotimes [i (alength buffer)]
+      (let [octet (subs string (* i 8) (* (inc i) 8))
+            x (bit-or (if (= "1" (str (nth octet 0))) 0x80 0x00)
+                      (if (= "1" (str (nth octet 1))) 0x40 0x00)
+                      (if (= "1" (str (nth octet 2))) 0x20 0x00)
+                      (if (= "1" (str (nth octet 3))) 0x10 0x00)
+                      (if (= "1" (str (nth octet 4))) 0x08 0x00)
+                      (if (= "1" (str (nth octet 5))) 0x04 0x00)
+                      (if (= "1" (str (nth octet 6))) 0x02 0x00)
+                      (if (= "1" (str (nth octet 7))) 0x01 0x00))]
+        (b/set-byte buffer i x)))
+    buffer))
+
+
 (def ^:private base2
   {:key :base2
-   :formatter (fn format-binary
-                [^bytes data]
-                (reduce
-                  (fn build-str
-                    [string i]
-                    (if (< i (alength data))
-                      (let [x (b/get-byte data i)
-                            octet (str (if (zero? (bit-and x 0x80)) "0" "1")
-                                       (if (zero? (bit-and x 0x40)) "0" "1")
-                                       (if (zero? (bit-and x 0x20)) "0" "1")
-                                       (if (zero? (bit-and x 0x10)) "0" "1")
-                                       (if (zero? (bit-and x 0x08)) "0" "1")
-                                       (if (zero? (bit-and x 0x04)) "0" "1")
-                                       (if (zero? (bit-and x 0x02)) "0" "1")
-                                       (if (zero? (bit-and x 0x01)) "0" "1"))]
-                        (recur (str string octet) (inc i)))
-                      string))
-                  "" 0))
-   :parser (fn parse-binary
-             [^String string]
-             (let [string (if (zero? (rem (count string) 8))
-                            string
-                            (str (repeat (- 8 (rem (count string) 8)) "0")
-                                 string))
-                   buffer (b/byte-array (int (/ (count string) 8)))]
-               (loop [i 0]
-                 (when (< i (alength buffer))
-                   (let [octet (subs string (* i 8) (* (inc i) 8))
-                         x (bit-or (if (= "1" (nth octet 0)) 0x80 0x00)
-                                   (if (= "1" (nth octet 1)) 0x40 0x00)
-                                   (if (= "1" (nth octet 2)) 0x20 0x00)
-                                   (if (= "1" (nth octet 3)) 0x10 0x00)
-                                   (if (= "1" (nth octet 4)) 0x08 0x00)
-                                   (if (= "1" (nth octet 5)) 0x04 0x00)
-                                   (if (= "1" (nth octet 6)) 0x02 0x00)
-                                   (if (= "1" (nth octet 7)) 0x01 0x00))]
-                     (b/set-byte buffer i x)
-                     (recur (inc i)))))
-               buffer))})
+   :formatter format-binary
+   :parser parse-binary})
 
 
 (def ^:private base8
@@ -285,7 +289,8 @@
   "Map of base keys to definition maps."
   (reduce install-base
           {}
-          [base8
+          [base2
+           base8
            ;base10
            base16
            base32

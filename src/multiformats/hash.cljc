@@ -7,7 +7,7 @@
   ;(:refer-clojure :exclude [format])
   (:require
     [alphabase.bytes :as b]
-    [alphabase.hex :as hex]
+    [multiformats.base.b16 :as hex]
     [multiformats.varint :as varint])
   #?(:clj
      (:import
@@ -64,9 +64,7 @@
   "Read the header and digest from the encoded bytes."
   [^bytes data]
   (let [[code length offset] (read-header data)
-        digest (->> (range offset (alength data))
-                    (map #(hex/byte->hex (b/get-byte data %)))
-                    (apply str))]
+        digest (hex/format-slice data offset (- (alength data) offset))]
     {:code code
      :algorithm (find-algorithm code)
      :length length

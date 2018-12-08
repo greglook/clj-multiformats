@@ -79,22 +79,70 @@
 
 (deftest example-coding
   (testing "Encoding is reflexive"
-    (let [mhash (mhash/create 0x02 (hex/parse "0beec7b8"))]
+    (let [mhash (mhash/create 0x02 "0beec7b8")]
       (is (= mhash (mhash/decode (mhash/encode mhash))))))
   (doseq [[hex [code algorithm bits digest]] examples]
-    (let [mhash (mhash/create algorithm (hex/parse digest))]
+    (let [mhash (mhash/create algorithm digest)]
       (is (= code (:code mhash)))
       (is (= algorithm (:algorithm mhash)))
       (is (= bits (:bits mhash)))
       (is (= digest (:digest mhash)))
-      #_
+      #_ ; TODO: enable
       (is (= hex (mhash/hex mhash))
           "Encoded multihashes match expected hex")
-      #_
+      #_ ; TODO: enable
       (is (= mhash (mhash/decode hex))
           "Hex decodes into expected multihash")
-      #_
+      #_ ; TODO: enable
       (let [b58 (mhash/base58 mhash)]
         (is (string? b58) "Multihash encodes to a base-58 string")
         (is (= mhash (mhash/decode b58))
             "Multihash round-trips through Base58 encoding")))))
+
+
+(deftest hashing-constructors
+  (doseq [[algorithm hash-fn] mhash/functions]
+    (testing (str (name algorithm) " hashing")
+      (let [content "foo bar baz"
+            cbytes #?(:clj (.getBytes content)
+                      :cljs (crypt/stringToUtf8ByteArray content))
+            mh1 (hash-fn content)
+            mh2 (hash-fn cbytes)
+            mh3 #?(:clj (hash-fn (ByteBuffer/wrap (.getBytes content)))
+                   :cljs mh1)
+            mh4 #?(:clj (hash-fn (ByteArrayInputStream. (.getBytes content)))
+                   :cljs mh1)]
+        (is (= algorithm
+               (:algorithm mh1)
+               (:algorithm mh2)
+               (:algorithm mh3)
+               (:algorithm mh4))
+            "Constructed multihash algorithms match")
+        (is (= (:digest mh1)
+               (:digest mh2)
+               (:digest mh3)
+               (:digest mh4))
+            "Constructed multihash digests match")
+        (is (thrown? #?(:clj Exception, :cljs js/Error)
+                     (hash-fn 123)))))))
+
+
+(deftest content-validation
+  (let [content "baz bar foo"
+        mhash (mhash/sha1 content)]
+    (is (nil? (mhash/test nil nil)))
+    (is (nil? (mhash/test nil content)))
+    (is (nil? (mhash/test mhash nil)))
+    (is (true? (mhash/test mhash content))
+        "Correct multihash returns true")
+    (is (false? (mhash/test
+                  (mhash/create :sha1 "68a9f54521a5501230e9dc73")
+                  content))
+        "Incorrect multihash returns false")
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
+                             :cljs js/Error)
+                          #"No supported hashing function for algorithm :shake-128"
+          (mhash/test
+            (mhash/create :shake-128 "68a9f54521a5501230e9dc73")
+            content))
+        "Unsupported hash function cannot be validated")))

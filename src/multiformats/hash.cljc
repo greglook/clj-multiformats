@@ -396,18 +396,28 @@
 (defmacro ^:private defhash
   "Defines a new hashing function for the given algorithm."
   [algo-sym]
-  (let [algo-key (keyword algo-sym)]
-    `(defn ~algo-sym
-       ~(str "Calculates the " algo-sym
-             " digest of the given content and returns a multihash.")
-       [~'content]
-       (create ~algo-key (digest-content (init-hasher ~algo-key) ~'content)))))
+  `(defn ~algo-sym
+     ~(str "Calculates the " algo-sym
+           " digest of the given content and returns a multihash.")
+     [~'content]
+     (let [algo-key# ~(keyword algo-sym)
+           hasher# (init-hasher algo-key#)
+           digest# (digest-content hasher# ~'content)]
+       (create algo-key# digest#))))
 
 
 (defhash md5)
 (defhash sha1)
 (defhash sha2-256)
 (defhash sha2-512)
+
+
+(def functions
+  "Map of hash digest functions available."
+  {:md5 md5
+   :sha1 sha1
+   :sha2-256 sha2-256
+   :sha2-512 sha2-512})
 
 
 (defn test
@@ -418,7 +428,8 @@
   [mhash content]
   (when (and mhash content)
     (if-let [hasher (init-hasher (:algorithm mhash))]
-      (let [other (create (:code mhash) (digest-content hasher content))]
+      (let [digest (digest-content hasher content)
+            other (create (:code mhash) digest)]
         (= mhash other))
       (throw (ex-info
                (str "No supported hashing function for algorithm "

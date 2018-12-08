@@ -202,16 +202,54 @@
     (Multihash. _bytes meta-map _hash)))
 
 
+
+;; ## Constructors
+
+(defn- resolve-code
+  "Resolve an algorithm to a numeric code, or throws an exception on invalid input."
+  [algorithm]
+  (cond
+    (integer? algorithm)
+    (if (nat-int? algorithm)
+      algorithm
+      (throw (ex-info (str "Hash algorithm codes cannot be negative: " algorithm)
+                      {:algorithm algorithm})))
+
+    (keyword? algorithm)
+    (or (get codes algorithm)
+        (throw (ex-info
+                 (str algorithm " does not map to a known hash algorithm code.")
+                 {:algorithm algorithm})))
+
+    :else
+    (throw (ex-info
+             (str (pr-str algorithm)
+                  " is not a valid algorithm keyword or numeric code.")
+              {:algorithm algorithm}))))
+
+
+(defn- resolve-digest
+  "Resolve a digest to a byte array, or throws an exception on invalid input."
+  [digest]
+  (cond
+    (bytes? digest)
+    digest
+
+    (string? digest)
+    (hex/parse digest)
+
+    :else
+    (throw (ex-info
+             (str (pr-str digest) " is not a byte array or hex string.")
+             {:digest digest}))))
+
+
 (defn create
   "Constructs a new Multihash identifier from the given algorithm key (or
   numeric code) and digest byte array (or hex string)."
-  [algorithm ^bytes digest]
-  (let [code (if (keyword? algorithm)
-               (get codes algorithm)
-               algorithm)]
-    (when-not (integer? code)
-      (throw (ex-info (str (pr-str algorithm) " does not map to a known hash algorithm code.")
-               {:algorithm algorithm})))
+  [algorithm digest]
+  (let [code (resolve-code algorithm)
+        digest (resolve-digest digest)]
     (Multihash. (encode-bytes code digest) nil 0)))
 
 

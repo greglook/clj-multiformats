@@ -11,7 +11,7 @@
   {"clj:test" ["do" "check" "test"]
    "cljs:check" ["with-profile" "+doo" "cljsbuild" "once"]
    "cljs:repl" ["run" "-m" "clojure.main" "dev/cljs_repl.clj"]
-   "cljs:test" ["doo" "phantom" "test" "once"]}
+   "cljs:test" ["doo" "rhino" "test" "once"]}
 
   :plugins
   [[lein-cljsbuild "1.1.7"

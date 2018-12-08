@@ -12,8 +12,9 @@
     [alphabase.bytes :as b]
     [alphabase.core :as abc]
     [clojure.string :as str]
-    #?@(:cljs [[goog.crypt :as crypt]
-               ,,,]))
+    #?@(:cljs
+        [[goog.crypt :as crypt]
+         [goog.crypt.base64 :as gb64]]))
   #?(:clj
      (:import
        (org.apache.commons.codec.binary
@@ -276,8 +277,11 @@
            (str/replace encoded #"=+$" "")
 
            :else encoded))
-       :default ; TODO: cljs implementation
-       (throw (ex-info "NYI" {})))))
+       :cljs
+       (let [encoded (gb64/encodeByteArray data url?)]
+         (if padding?
+           (str/replace encoded "." "=")
+           (str/replace encoded #"[.=]+$" ""))))))
 
 
 (defn- parse-base64
@@ -285,8 +289,8 @@
   [^String string]
   #?(:clj
      (Base64/decodeBase64 string)
-     :default ; TODO: cljs implementation
-     (throw (ex-info "NYI" {}))))
+     :cljs
+     (gb64/decodeStringToUint8Array string)))
 
 
 (defbase base64

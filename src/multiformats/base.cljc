@@ -9,19 +9,13 @@
      (:require-macros
        [multiformats.base :refer [defbase]]))
   (:require
-    [alphabase.bytes :as b]
-    [alphabase.core :as abc]
     [clojure.string :as str]
-    #?@(:cljs
-        [[goog.crypt :as crypt]
-         [goog.crypt.base64 :as gb64]]))
-  #?(:clj
-     (:import
-       (org.apache.commons.codec.binary
-         Base32
-         Base64
-         BinaryCodec
-         Hex))))
+    [multiformats.base.b2 :as b2]
+    [multiformats.base.b8 :as b8]
+    [multiformats.base.b16 :as b16]
+    [multiformats.base.b32 :as b32]
+    [multiformats.base.b58 :as b58]
+    [multiformats.base.b64 :as b64]))
 
 
 (def codes
@@ -65,344 +59,99 @@
 
 ;; ### Binary
 
-(defn- reverse-octets
-  "Reverse the octets (8-bit segments) a binary string."
-  [string]
-  (loop [octets nil
-         i 0]
-    (if (< i (count string))
-      (recur (cons (subs string i (+ i 8)) octets) (+ i 8))
-      (apply str octets))))
-
-
-(defn- format-binary
-  "Format some byte data into a binary-encoded string."
-  [^bytes data]
-  #?(:clj
-     (reverse-octets (BinaryCodec/toAsciiString data))
-     :default ; OPTIMIZE: better cljs implementation
-     (reduce
-       (fn build-str
-         [string i]
-         (let [x (b/get-byte data i)
-               octet (str (if (zero? (bit-and x 0x80)) "0" "1")
-                          (if (zero? (bit-and x 0x40)) "0" "1")
-                          (if (zero? (bit-and x 0x20)) "0" "1")
-                          (if (zero? (bit-and x 0x10)) "0" "1")
-                          (if (zero? (bit-and x 0x08)) "0" "1")
-                          (if (zero? (bit-and x 0x04)) "0" "1")
-                          (if (zero? (bit-and x 0x02)) "0" "1")
-                          (if (zero? (bit-and x 0x01)) "0" "1"))]
-           (str string octet)))
-       "" (range (alength data)))))
-
-
-(defn- parse-binary
-  "Parse a string of binary-encoded bytes."
-  [^String string]
-  #?(:clj
-     (.toByteArray (BinaryCodec.) (reverse-octets string))
-     :default ; OPTIMIZE: better cljs implementation
-     (let [string (if (zero? (rem (count string) 8))
-                    string
-                    (str (str/join (repeat (- 8 (rem (count string) 8)) "0"))
-                         string))
-           buffer (b/byte-array (int (/ (count string) 8)))]
-       (dotimes [i (alength buffer)]
-         (let [octet (subs string (* i 8) (* (inc i) 8))
-               x (bit-or (if (= "1" (subs octet 0 1)) 0x80 0x00)
-                         (if (= "1" (subs octet 1 2)) 0x40 0x00)
-                         (if (= "1" (subs octet 2 3)) 0x20 0x00)
-                         (if (= "1" (subs octet 3 4)) 0x10 0x00)
-                         (if (= "1" (subs octet 4 5)) 0x08 0x00)
-                         (if (= "1" (subs octet 5 6)) 0x04 0x00)
-                         (if (= "1" (subs octet 6 7)) 0x02 0x00)
-                         (if (= "1" (subs octet 7 8)) 0x01 0x00))]
-           (b/set-byte buffer i x)))
-       buffer)))
-
-
 (defbase base2
-  :formatter format-binary
-  :parser parse-binary)
+  :formatter b2/format
+  :parser b2/parse)
 
 
 ;; ### Octal
 
-(let [alphabet "01234567"]
-  (defbase base8
-    :formatter (fn format-octal
-                 [^bytes data]
-                 (abc/encode alphabet data))
-    :parser (fn parse-octal
-              [^String string]
-              (abc/decode alphabet string))))
+(defbase base8
+  :formatter b8/format
+  :parser b8/parse)
 
 
 ;; ### Hexadecimal
 
-(defn- format-hex
-  "Format byte data as a hexadecimal-encoded string."
-  [^bytes data]
-  #?(:clj
-     (Hex/encodeHexString data true)
-     :cljs
-     (crypt/byteArrayToHex data)))
-
-
-(defn- parse-hex
-  "Parse a hexadecimal-encoded string into bytes."
-  [^String string]
-  #?(:clj
-     (Hex/decodeHex string)
-     :cljs
-     (crypt/hexToByteArray string)))
-
-
 (defbase base16
-  :formatter format-hex
-  :parser parse-hex)
+  :formatter b16/format
+  :parser b16/parse)
 
 
 (defbase BASE16
-  :formatter (comp str/upper-case format-hex)
-  :parser parse-hex)
+  :formatter (comp str/upper-case b16/format)
+  :parser b16/parse)
 
 
 ;; ### Base32 (RFC 4648)
 
-(defn- base32-formatter
-  "Constructs a function which formats byte data as a base32-encoded string."
-  [hex? lower? pad?]
-  #?(:clj
-     (let [codec (Base32. 0 nil hex? (int \=))]
-       (fn format
-         [^bytes data]
-         (cond-> (.encodeToString codec data)
-           lower? (str/lower-case)
-           (not pad?) (str/replace #"=+$" ""))))
-     :cljs
-     (let [alphabet (cond-> (if hex?
-                              "0123456789abcdefghijklmnopqrstuv"
-                              "abcdefghijklmnopqrstuvwxyz234567")
-                      (not lower?) (str/upper-case))]
-       (fn format
-         [data]
-         (let [padding (rem (alength data) 5)]
-           (loop [groups []
-                  offset 0]
-             (if (< offset (alength data))
-               ; Read in 40 bits as 5 octets, write 8 characters.
-               (let [input-bytes (min 5 (- (alength data) offset))
-                     output-chars (cond-> (int (/ (* input-bytes 8) 5))
-                                    (pos? (rem (* input-bytes 8) 5)) (inc))
-                     [b0 b1 b2 b3 b4 b5] (map #(or (b/get-byte data (+ offset %)) 0)
-                                              (range 0 input-bytes))
-                     bits [; top 5 bits of byte 0
-                           (bit-and (bit-shift-right b0 3) 0x1F)
-                           ; bottom 3 bits of byte 0 + top 2 bits of byte 1
-                           (bit-or (bit-and (bit-shift-left  b0 2) 0x1C)
-                                   (bit-and (bit-shift-right b1 6) 0x03))
-                           ; middle 5 bits of byte 1
-                           (bit-and (bit-shift-right b1 1) 0x1F)
-                           ; bottom 1 bit of byte 1 + top 4 bits of byte 2
-                           (bit-or (bit-and (bit-shift-left  b1 4) 0x10)
-                                   (bit-and (bit-shift-right b2 4) 0x0F))
-                           ; bottom 4 bits of byte 2 + top 1 bit of byte 3
-                           (bit-or (bit-and (bit-shift-left  b2 1) 0x1E)
-                                   (bit-and (bit-shift-right b3 7) 0x01))
-                           ; middle 5 bits of byte 3
-                           (bit-and (bit-shift-right b3 2) 0x1F)
-                           ; bottom 2 bits of byte 3 + top 3 bits of byte 4
-                           (bit-or (bit-and (bit-shift-left  b3 3) 0x18)
-                                   (bit-and (bit-shift-right b4 5) 0x07))
-                           ; bottom 5 bits of byte 4
-                           (bit-and b4 0x1F)]
-                     s (apply str (take output-chars (map #(nth alphabet %) bits)))]
-                 (recur (conj groups s) (+ offset 5)))
-               ; Apply padding to final result.
-               (cond-> (apply str groups)
-                 pad? (str (case padding
-                             4 "="
-                             3 "==="
-                             2 "===="
-                             1 "======"
-                             nil))))))))))
-
-
-(defn- base32-parser
-  "Constructs a function which parses a base32-encoded string into bytes."
-  [hex? lower? pad?]
-  #?(:clj
-     (let [codec (Base32. 0 nil hex? (int \=))]
-       (fn parse
-         [^String string]
-         (.decode codec string)))
-     :cljs
-     (let [alphabet (if hex?
-                      "0123456789abcdefghijklmnopqrstuv"
-                      "abcdefghijklmnopqrstuvwxyz234567")
-           char->n (into {} (map vector (seq alphabet) (range)))]
-       (fn parse
-         [string]
-         (let [input (str/replace (str/lower-case string) #"=+$" "")
-               length (let [l (* 5 (int (/ (count input) 8)))]
-                        (case (rem (count input) 8)
-                          0 (+ l 0)
-                          2 (+ l 1)
-                          4 (+ l 2)
-                          5 (+ l 3)
-                          7 (+ l 4)))
-               buffer (b/byte-array length)]
-           (loop [char-offset 0
-                  byte-offset 0]
-             (when (< char-offset (count string))
-               ; Read in 40 bits as 8 characters, write 5 octets.
-               (let [input-chars (min 8 (- (count input) char-offset))
-                     output-bytes (case input-chars
-                                    2 1
-                                    4 2
-                                    5 3
-                                    7 4
-                                    8 5)
-                     [c0 c1 c2 c3 c4 c5 c6 c7 :as cs]
-                     (concat (map #(char->n (nth input (+ char-offset %)))
-                                  (range input-chars))
-                             (repeat (- 8 input-chars) 0))
-                     [b0 b1 b2 b3 b4 b5 :as bs]
-                     [; 5 bits of c0 + top 3 bits of c1
-                      (bit-or (bit-and 0xF8 (bit-shift-left  c0 3))
-                              (bit-and 0x07 (bit-shift-right c1 2)))
-                      ; bottom 2 bits of c1 + 5 bits of c2 + top 1 bit of c3
-                      (bit-or (bit-and 0xC0 (bit-shift-left  c1 6))
-                              (bit-and 0x3E (bit-shift-left  c2 1))
-                              (bit-and 0x01 (bit-shift-right c3 4)))
-                      ; bottom 4 bits of c3 + top 4 bits of c4
-                      (bit-or (bit-and 0xF0 (bit-shift-left  c3 4))
-                              (bit-and 0x0F (bit-shift-right c4 1)))
-                      ; bottom 1 bits of c4 + 5 bits of c5 + top 2 bit of c6
-                      (bit-or (bit-and 0x80 (bit-shift-left  c4 7))
-                              (bit-and 0x7C (bit-shift-left  c5 2))
-                              (bit-and 0x03 (bit-shift-right c6 3)))
-                      ; bottom 3 bits of c6 + 5 bits of c7
-                      (bit-or (bit-and 0xE0 (bit-shift-left c6 5))
-                              (bit-and 0x1F c7))]]
-                 (dotimes [i output-bytes]
-                   (b/set-byte buffer (+ byte-offset i) (nth bs i))))
-               (recur (+ char-offset 8) (+ byte-offset 5))))
-           buffer)))))
-
-
 (defbase base32
-  :formatter (base32-formatter false true false)
-  :parser (base32-parser false true false))
+  :formatter (b32/formatter false true false)
+  :parser (b32/parser false true false))
 
 
 (defbase BASE32
-  :formatter (base32-formatter false false false)
-  :parser (base32-parser false false false))
+  :formatter (b32/formatter false false false)
+  :parser (b32/parser false false false))
 
 
 (defbase base32pad
-  :formatter (base32-formatter false true true)
-  :parser (base32-parser false true true))
+  :formatter (b32/formatter false true true)
+  :parser (b32/parser false true true))
 
 
 (defbase BASE32PAD
-  :formatter (base32-formatter false false true)
-  :parser (base32-parser false false true))
+  :formatter (b32/formatter false false true)
+  :parser (b32/parser false false true))
 
 
 (defbase base32hex
-  :formatter (base32-formatter true true false)
-  :parser (base32-parser true true false))
+  :formatter (b32/formatter true true false)
+  :parser (b32/parser true true false))
 
 
 (defbase BASE32HEX
-  :formatter (base32-formatter true false false)
-  :parser (base32-parser true false false))
+  :formatter (b32/formatter true false false)
+  :parser (b32/parser true false false))
 
 
 (defbase base32hexpad
-  :formatter (base32-formatter true true true)
-  :parser (base32-parser true true true))
+  :formatter (b32/formatter true true true)
+  :parser (b32/parser true true true))
 
 
 (defbase BASE32HEXPAD
-  :formatter (base32-formatter true false true)
-  :parser (base32-parser true false true))
-
+  :formatter (b32/formatter true false true)
+  :parser (b32/parser true false true))
 
 
 ;; ### Base58
 
-(let [alphabet "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"]
-  (defbase base58btc
-    :formatter (fn format-base58btc
-                 [^bytes data]
-                 (abc/encode alphabet data))
-    :parser (fn parse-base58btc
-              [^String string]
-              (abc/decode alphabet string))))
+(defbase base58btc
+  :formatter (b58/formatter b58/btc-alphabet)
+  :parser (b58/parser b58/btc-alphabet))
 
 
 ;; ### Base64 (RFC 4648)
 
-(defn- base64-formatter
-  "Construct a new function to format bytes as base64 with normal or URL
-  alphabet, padded or not."
-  [url? padding?]
-  (fn format
-    [^bytes data]
-    #?(:clj
-       (let [encoded (if url?
-                       (Base64/encodeBase64URLSafeString data)
-                       (Base64/encodeBase64String data))]
-         (cond
-           (and url? padding?)
-           (str encoded (case (rem (alength data) 3)
-                          2 "="
-                          1 "=="
-                          nil))
-
-           (and (not url?) (not padding?))
-           (str/replace encoded #"=+$" "")
-
-           :else encoded))
-       :cljs
-       (let [encoded (gb64/encodeByteArray data url?)]
-         (if padding?
-           (str/replace encoded "." "=")
-           (str/replace encoded #"[.=]+$" ""))))))
-
-
-(defn- parse-base64
-  "Parse a string of base64-encoded bytes."
-  [^String string]
-  #?(:clj
-     (Base64/decodeBase64 string)
-     :cljs
-     (gb64/decodeStringToUint8Array string)))
-
-
 (defbase base64
-  :formatter (base64-formatter false false)
-  :parser parse-base64)
+  :formatter (b64/formatter false false)
+  :parser b64/parse)
 
 
 (defbase base64pad
-  :formatter (base64-formatter false true)
-  :parser parse-base64)
+  :formatter (b64/formatter false true)
+  :parser b64/parse)
 
 
 (defbase base64url
-  :formatter (base64-formatter true false)
-  :parser parse-base64)
+  :formatter (b64/formatter true false)
+  :parser b64/parse)
 
 
 (defbase base64urlpad
-  :formatter (base64-formatter true true)
-  :parser parse-base64)
+  :formatter (b64/formatter true true)
+  :parser b64/parse)
 
 
 

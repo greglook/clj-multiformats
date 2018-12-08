@@ -29,10 +29,9 @@
    [commons-codec "1.11"]]
 
   :hiera
-  {:cluster-depth 1
+  {:cluster-depth 2
    ;:vertical false
-   :show-external true
-   :ignore-ns #{clojure}}
+   :show-external false}
 
   :cljsbuild
   {:builds [{:id "test"

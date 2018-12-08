@@ -8,7 +8,7 @@
   :pedantic? :abort
 
   :aliases
-  {"clj:test" ["do" "check" "test"]
+  {"clj:test" ["do" ["check"] ["test"]]
    "cljs:check" ["with-profile" "+doo" "cljsbuild" "once"]
    "cljs:repl" ["run" "-m" "clojure.main" "dev/cljs_repl.clj"]
    "cljs:test" ["doo" "rhino" "test" "once"]}

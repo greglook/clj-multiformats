@@ -4,9 +4,18 @@
   considerations.
 
   https://github.com/multiformats/multihash"
-  ;(:refer-clojure :exclude [format])
+  (:refer-clojure :exclude [test])
+  #?(:cljs
+     (:require-macros
+       [multiformats.hash :refer [defhash]]))
   (:require
     [alphabase.bytes :as b]
+    #?@(:cljs
+        [[goog.crypt :as crypt]
+         [goog.crypt.Md5]
+         [goog.crypt.Sha1]
+         [goog.crypt.Sha256]
+         [goog.crypt.Sha512]])
     [multiformats.base.b16 :as hex]
     [multiformats.varint :as varint])
   #?(:clj
@@ -15,7 +24,10 @@
          ILookup
          IMeta
          IObj
-         Keyword))))
+         Keyword)
+       java.io.InputStream
+       java.nio.ByteBuffer
+       java.security.MessageDigest)))
 
 
 (def codes
@@ -115,8 +127,6 @@
 
 
   #?(:clj java.io.Serializable)
-
-  ; TODO: customize serialization?
 
 
   #?(:cljs IEquiv)
@@ -274,4 +284,107 @@
 
 
 ; TODO: 'hex' and 'base58' back-compat helpers?
-; TODO: digest functions?
+
+
+
+;; ## Digest Constructors
+
+(defn- init-hasher
+  "Initialize a hashing algorithm to digest some content. Returns nil if the
+  algorithm is not supported on the current platform."
+  [algorithm]
+  #?(:clj
+     (some->
+       (case algorithm
+         :md5      "MD5"
+         :sha1     "SHA-1"
+         :sha2-256 "SHA-256"
+         :sha2-512 "SHA-512"
+         nil)
+       (MessageDigest/getInstance))
+     :cljs
+     (case algorithm
+       :md5      (goog.crypt.Md5.)
+       :sha1     (goog.crypt.Sha1.)
+       :sha2-256 (goog.crypt.Sha256.)
+       :sha2-512 (goog.crypt.Sha512.)
+       nil)))
+
+
+(defn- digest-content
+  "Constructs a cryptographic digest for a given hasher and content. Content
+  may be in the form of a raw byte array, a `ByteBuffer`, an `InputStream`, or
+  a string. Returns a byte array with the digest."
+  ^bytes
+  [hasher content]
+  #?(:clj
+     (cond
+       (string? content)
+       (.update hasher (.getBytes ^String content))
+
+       (bytes? content)
+       (.update hasher ^bytes content)
+
+       (instance? ByteBuffer content)
+       (.update hasher ^ByteBuffer content)
+
+       (instance? InputStream content)
+       (let [buffer (byte-array 4096)]
+         (loop []
+           (let [n (.read ^InputStream content buffer 0 (count buffer))]
+             (when (pos? n)
+               (.update hasher buffer 0 n)
+               (recur)))))
+
+       :else
+       (throw (ex-info (str "Don't know how to compute digest from "
+                            (.getName (class content)))
+                       {:content content})))
+     :cljs
+     (cond
+       (string? content)
+       (.update hasher (crypt/stringToUtf8ByteArray content))
+
+       (bytes? content)
+       (.update hasher content)
+
+       :else
+       (throw (ex-info (str "Don't know how to compute digest from "
+                            (class content))
+                       {:content content}))))
+    (.digest hasher))
+
+
+(defmacro ^:private defhash
+  "Defines a new hashing function for the given algorithm."
+  [algo-sym]
+  (let [algo-key (keyword algo-sym)]
+    `(defn ~algo-sym
+       ~(str "Calculates the " algo-sym
+             " digest of the given content and returns a multihash.")
+       [~'content]
+       (create ~algo-key (digest-content (init-hasher ~algo-key) ~'content)))))
+
+
+(defhash md5)
+(defhash sha1)
+(defhash sha2-256)
+(defhash sha2-512)
+
+
+(defn test
+  "Determines whether a multihash is a correct identifier for some content by
+  recomputing the digest for the algorithm specified in the multihash. Returns
+  nil if either argument is nil, true if the digest matches, or false if not.
+  Throws an exception if the multihash specifies an unsupported algorithm."
+  [mhash content]
+  (when (and mhash content)
+    (if-let [hasher (init-hasher (:algorithm mhash))]
+      (let [other (create (:code mhash) (digest-content hasher content))]
+        (= mhash other))
+      (throw (ex-info
+               (str "No supported hashing function for algorithm "
+                    (or (:algorithm mhash) (:code mhash))
+                    " to validate " mhash)
+               {:code (:code mhash)
+                :algorithm (:algorithm mhash)})))))

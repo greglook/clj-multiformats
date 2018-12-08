@@ -3,7 +3,9 @@
   self-description. A multicodec identifier may either be a varint (in a byte
   string) or a character (in a text string).
 
-  https://github.com/multiformats/multicodec")
+  https://github.com/multiformats/multicodec"
+  (:require
+    [multiformats.base :as base]))
 
 
 ;; ## Code Tables
@@ -11,31 +13,6 @@
 (def miscellaneous-codes
   "Miscellaneous codes."
   {:raw 0x55  ; Raw binary data.
-   ,,,})
-
-
-(def base-codes
-  "Base encodings, as used in multibase."
-  {:base1              \1   ; Unary
-   :base2              \0   ; Binary
-   :base8              \7   ; Octal
-   :base10             \9   ; Decimal
-   :base16             \f   ; Hexadecimal (lower-case)
-   :base16-upper       \F   ; Hexadecimal (upper-case)
-   :base32             \b   ; RFC 4648 (lower-case)
-   :base32-upper       \B   ; RFC 4648 (upper-case)
-   :base32pad          \c   ; RFC 4648 (lower-case)
-   :base32pad-upper    \C   ; RFC 4648 (upper-case)
-   :base32hex          \v   ; RFC 4648 (lower-case)
-   :base32hex-upper    \V   ; RFC 4648 (upper-case)
-   :base32hexpad       \t   ; RFC 4648 (lower-case)
-   :base32hexpad-upper \T   ; RFC 4648 (upper-case)
-   :base58flickr       \Z   ; Base58 Flicker
-   :base58btc          \z   ; Base58 Bitcoin
-   :base64             \m   ; RFC 4648
-   :base64pad          \M   ; RFC 4648
-   :base64url          \u   ; RFC 4648
-   :base64urlpad       \U   ; RFC 4648
    ,,,})
 
 
@@ -149,7 +126,7 @@
   ; TODO: check for conflicts
   (merge
     miscellaneous-codes
-    base-codes
+    base/codes
     serialization-codes
     multiformat-codes
     multihash-codes

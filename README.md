@@ -1,13 +1,22 @@
 Clojure(Script) Multiformats
 ============================
 
+[![CircleCI](https://circleci.com/gh/greglook/clj-multiformats/tree/develop.svg?style=svg&circle-token=81186aba4f41d5930e1d07e9acd957d37f483357)](https://circleci.com/gh/greglook/clj-multiformats/tree/develop)
+[![codecov](https://codecov.io/gh/greglook/clj-multiformats/branch/develop/graph/badge.svg)](https://codecov.io/gh/greglook/clj-multiformats)
+
 This is a cross-compiled Clojure/CLJS library implementing the
 [multiformats](https://github.com/multiformats/) standards which specify
 self-describing value formats.
 
 This includes support for:
 - Unbounded [varint](https://github.com/multiformats/unsigned-varint) encoding.
-- IPLD [CID](https://github.com/ipld/cid) content identifiers.
+- Flexible [multibase](https://github.com/multiformats/multibase) string
+  encoding.
+- **TODO:** multiaddr
+- **TODO:** multicodec packed codes
+- **TODO:** multihash
+- **TODO:** IPLD [CID](https://github.com/ipld/cid) content identifiers.
+- **TODO:** multistream
 
 
 **WARNING:** This is still very much a work in progress. More to come!

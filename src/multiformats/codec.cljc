@@ -5,7 +5,8 @@
 
   https://github.com/multiformats/multicodec"
   (:require
-    [multiformats.base :as base]))
+    [multiformats.base :as mbase]
+    [multiformats.hash :as mhash]))
 
 
 ;; ## Code Tables
@@ -37,30 +38,6 @@
    :multihash  0x31
    :multiaddr  0x32
    :multibase  0x33})
-
-
-(def multihash-codes
-  "Hash algorithm identifiers for use in multihashes."
-  {:identity     0x00
-   :md4          0xd4
-   :md5          0xd5
-   :sha1         0x11
-   :sha2-256     0x12
-   :sha2-512     0x13
-   :dbl-sha2-256 0x56
-   :sha3-224     0x17
-   :sha3-256     0x16
-   :sha3-384     0x15
-   :sha3-512     0x14
-   :shake-128    0x18
-   :shake-256    0x19
-   :keccak-224   0x1A
-   :keccak-256   0x1B
-   :keccak-384   0x1C
-   :keccak-512   0x1D
-   :murmur3      0x22
-   :x11          0x1100
-   ,,,})
 
 
 (def multiaddr-codes
@@ -126,11 +103,11 @@
   ; TODO: check for conflicts
   (merge
     miscellaneous-codes
-    base/codes
-    serialization-codes
     multiformat-codes
-    multihash-codes
     multiaddr-codes
+    mbase/codes
+    mhash/codes
+    serialization-codes
     ipld-codes))
 
 

@@ -7,4 +7,5 @@
     [clojure.tools.namespace.repl :refer [refresh]]
     [multiformats.base :as mbase]
     [multiformats.codec :as mcodec]
+    [multiformats.hash :as mhash]
     [multiformats.varint :as varint]))

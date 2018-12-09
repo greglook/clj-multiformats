@@ -4,7 +4,7 @@ jobs:
   build:
     working_drectory: ~/code
     docker:
-      - image: circleci/clojure:openjdk-8-lein-2.8.1-node-browsers-legacy
+      - image: circleci/clojure:openjdk-8-lein-2.8.1
     environment:
       QT_QPA_PLATFORM: offscreen
     steps:

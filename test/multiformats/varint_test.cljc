@@ -24,14 +24,26 @@
 
 (deftest edge-cases
   (testing "encoding"
-    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo
-                             :cljs js/Error)
-                          #"cannot be negative"
-          (varint/encode -1)))
-    ; write varint larger than 9 bytes
-    ; write beyond end of buffer
-    ,,,)
+    (testing "negative value"
+      (is (thrown-with-msg? #?(:clj Exception, :cljs js/Error)
+                            #"cannot be negative"
+            (varint/encode -1))))
+    #_ ; TODO: doesn't work since bit shifts on a bigint fail
+    (testing "varint larger than nine bytes"
+      (is (thrown-with-msg? #?(:clj Exception, :cljs js/Error)
+                            #"larger than nine bytes"
+            (varint/encode 9223372036854775808))))
+    (testing "out of buffer bounds"
+      (let [buffer (b/byte-array 1)]
+        (is (thrown? #?(:clj Exception, :cljs js/Error)
+              (varint/write-bytes buffer 0 255))))))
   (testing "decoding"
-    ; read varint larger than 9 bytes
-    ; read beyond end of buffer
-    ,,,))
+    (testing "varint larger than nine bytes"
+      (is (thrown-with-msg? #?(:clj Exception, :cljs js/Error)
+                            #"larger than nine bytes"
+            (varint/decode (b/init-bytes [0x80 0x80 0x80 0x80 0x80
+                                          0x80 0x80 0x80 0x80 0x01])))))
+    (testing "out of buffer bounds"
+      (is (thrown-with-msg? #?(:clj Exception, :cljs js/Error)
+                            #"out of bytes to decode"
+            (varint/decode (b/init-bytes [0x80 0x81])))))))

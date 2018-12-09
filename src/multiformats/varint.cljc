@@ -15,12 +15,18 @@
 (defn write-bytes
   "Write a value as a varint to a byte array at the given offset. Returns the
   number of bytes written."
-  [buffer offset value]
+  [^bytes buffer offset value]
   (when (neg? value)
     (throw (ex-info "Varints are unsigned and cannot be negative"
                     {:value value})))
   (loop [v value
          i 0]
+    ; Check for index out of bounds.
+    (when (<= (alength buffer) (+ offset i))
+      (throw (ex-info
+               (str "Varint write index out of bounds at position "
+                    (+ offset i) " (" i " bytes from offset " offset ")")
+               {:offset (+ offset i)})))
     ; Check for overflow.
     (when (<= 9 i)
       (throw (ex-info
@@ -60,29 +66,28 @@
   (loop [i offset
          n 0
          v 0]
-    (if (< i (alength data))
-      ; Decode next byte.
-      (let [b (b/get-byte data i)]
-        (if (< b 0x80)
-          ; Final byte.
-          [(bit-or (bit-shift-left b (* 7 n)) v)
-           (inc n)]
-          ; Continuation byte.
-          (if (<= 9 n)
-            ; Check for overflow of soft limit.
-            (throw (ex-info
-                     "Varints greater than nine bytes are not currently supported"
-                     {:offset offset}))
-            ; Add masked lower bits and recur.
-            (recur (inc i)
-                   (inc n)
-                   (bit-or (bit-shift-left (bit-and b 0x7F) (* 7 n)) v)))))
-      ; Out of bytes to decode.
+    ; Check for index out of bounds.
+    (when (<= (alength data) i)
       (throw (ex-info
                (str "Ran out of bytes to decode at position " i
                     " (" n " bytes from offset " offset ")")
                {:offset offset
-                :length (alength data)})))))
+                :length (alength data)})))
+    ; Check for overflow of soft limit.
+    (when (<= 9 n)
+      (throw (ex-info
+               "Varints larger than nine bytes are not currently supported"
+               {:offset offset})))
+    ; Decode next byte.
+    (let [b (b/get-byte data i)]
+      (if (< b 0x80)
+        ; Final byte.
+        [(bit-or (bit-shift-left b (* 7 n)) v)
+         (inc n)]
+        ; Continuation byte. Add masked lower bits and recur.
+        (recur (inc i)
+               (inc n)
+               (bit-or (bit-shift-left (bit-and b 0x7F) (* 7 n)) v))))))
 
 
 (defn decode

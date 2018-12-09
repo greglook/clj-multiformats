@@ -56,6 +56,16 @@
 
 ;; ## Coding Functions
 
+#?(:cljs
+   (defn bytes?
+     "True if the argument is byte data."
+     [x]
+     (let [result (or (instance? js/Uint8Array x)
+                      (and (instance? js/Array x)
+                           (integer? (first x))))]
+       result)))
+
+
 (defn- read-header
   "Read the algorithm code and digest bit size from the encoded bytes. Returns
   a tuple of the numeric code, byte length, and number of bytes read."
@@ -258,6 +268,7 @@
 
 (defn- inner-bytes
   "Retrieve the inner encoded bytes from a multihash value."
+  ^bytes
   [^Multihash mhash]
   (#?(:clj ._bytes :cljs .-_bytes) mhash))
 
@@ -354,43 +365,33 @@
   may be in the form of a raw byte array, a `ByteBuffer`, an `InputStream`, or
   a string. Returns a byte array with the digest."
   ^bytes
-  [hasher content]
-  #?(:clj
-     (cond
-       (string? content)
-       (.update hasher (.getBytes ^String content))
+  [^MessageDigest hasher content]
+  (cond
+    (string? content)
+    (let [utf8-bytes #?(:clj (.getBytes ^String content)
+                        :cljs (crypt/stringToUtf8ByteArray content))]
+      (.update hasher ^bytes utf8-bytes))
 
-       (bytes? content)
-       (.update hasher ^bytes content)
+    (bytes? content)
+    (.update hasher ^bytes content)
 
-       (instance? ByteBuffer content)
-       (.update hasher ^ByteBuffer content)
+    #?@(:clj
+        [(instance? ByteBuffer content)
+         (.update hasher ^ByteBuffer content)
 
-       (instance? InputStream content)
-       (let [buffer (byte-array 4096)]
-         (loop []
-           (let [n (.read ^InputStream content buffer 0 (count buffer))]
-             (when (pos? n)
-               (.update hasher buffer 0 n)
-               (recur)))))
+         (instance? InputStream content)
+         (let [buffer (byte-array 4096)]
+           (loop []
+             (let [n (.read ^InputStream content buffer 0 (count buffer))]
+               (when (pos? n)
+                 (.update hasher buffer 0 n)
+                 (recur)))))])
 
-       :else
-       (throw (ex-info (str "Don't know how to compute digest from "
-                            (.getName (class content)))
-                       {:content content})))
-     :cljs
-     (cond
-       (string? content)
-       (.update hasher (crypt/stringToUtf8ByteArray content))
-
-       (bytes? content)
-       (.update hasher content)
-
-       :else
-       (throw (ex-info (str "Don't know how to compute digest from "
-                            (class content))
-                       {:content content}))))
-    (.digest hasher))
+    :else
+    (throw (ex-info (str "Don't know how to compute digest from "
+                         (type content))
+                    {:content content})))
+  (.digest hasher))
 
 
 (defmacro ^:private defhash

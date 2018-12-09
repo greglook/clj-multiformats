@@ -174,8 +174,8 @@
     ; OPTIMIZE: compare byte representations directly
     (cond
       (= this that) 0
-      (neg? (compare (:algorithm this) (:algorithm that))) -1
-      (pos? (compare (:algorithm this) (:algorithm that)))  1
+      (< (:code this) (:code that)) -1
+      (> (:code this) (:code that))  1
       :else (compare (:digest this) (:digest that))))
 
 
@@ -210,6 +210,9 @@
   (#?(:clj withMeta, :cljs -with-meta)
     [this meta-map]
     (Multihash. _bytes meta-map _hash)))
+
+
+(alter-meta! #'->Multihash assoc :private true)
 
 
 
@@ -313,26 +316,10 @@
   (first (read-bytes data 0)))
 
 
-#_
-(defn format
-  "Format a multihash as a string, using the given base encoding. Returns a
-  string _without_ a multibase prefix."
-  ^String
-  ([mhash]
-   (format :base58btc mhash))
-  ([base ^Multihash mhash]
-   (mbase/format* base (inner-bytes mhash))))
-
-
-#_
-(defn parse
-  "Parse a multihash from a string."
-  [string]
-  ; TODO: how to detect without a multibase prefix? back-compat behavior?
-  ,,,)
-
-
-; TODO: 'hex' and 'base58' back-compat helpers?
+(defn hex
+  "Format a multihash as a hex string."
+  [mhash]
+  (hex/format (inner-bytes mhash)))
 
 
 

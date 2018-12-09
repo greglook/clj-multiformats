@@ -4,6 +4,7 @@
     [clojure.string :as str]
     #?(:clj [clojure.test :refer [deftest testing is]]
        :cljs [cljs.test :refer-macros [deftest testing is]])
+    #?(:cljs [goog.crypt :as crypt])
     [multiformats.hash :as mhash])
   #?(:clj
      (:import
@@ -87,17 +88,8 @@
       (is (= algorithm (:algorithm mhash)))
       (is (= bits (:bits mhash)))
       (is (= digest (:digest mhash)))
-      #_ ; TODO: enable
       (is (= hex (mhash/hex mhash))
-          "Encoded multihashes match expected hex")
-      #_ ; TODO: enable
-      (is (= mhash (mhash/decode hex))
-          "Hex decodes into expected multihash")
-      #_ ; TODO: enable
-      (let [b58 (mhash/base58 mhash)]
-        (is (string? b58) "Multihash encodes to a base-58 string")
-        (is (= mhash (mhash/decode b58))
-            "Multihash round-trips through Base58 encoding")))))
+          "Encoded multihashes match expected hex"))))
 
 
 (deftest hashing-constructors

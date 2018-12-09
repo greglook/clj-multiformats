@@ -8,18 +8,22 @@ This is a cross-compiled Clojure/CLJS library implementing the
 [multiformats](https://github.com/multiformats/) standards which specify
 self-describing value formats.
 
-This includes support for:
-- Unbounded [varint](https://github.com/multiformats/unsigned-varint) encoding.
+**WARNING:** This is still very much a work in progress. More to come!
+
+
+## Formats
+
+This library includes support for:
+
+- Unbounded [msb varint](https://github.com/multiformats/unsigned-varint)
+  encoding.
 - Flexible [multibase](https://github.com/multiformats/multibase) string
   encoding.
 - **TODO:** multiaddr
-- **TODO:** multicodec packed codes
-- **TODO:** multihash
+- Concise packed [codec identifiers](https://github.com/multiformats/multicodec).
+- Portable [cryptographic hashes](https://github.com/multiformats/multihash).
 - **TODO:** IPLD [CID](https://github.com/ipld/cid) content identifiers.
 - **TODO:** multistream
-
-
-**WARNING:** This is still very much a work in progress. More to come!
 
 
 ## Installation

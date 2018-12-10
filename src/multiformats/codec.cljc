@@ -93,4 +93,50 @@
   (into {} (map (juxt val key)) key->code))
 
 
-; TODO: function to register new codes?
+(defn resolve-key
+  "Resolve a codec to a keyword name or falls back to a numeric code, or throws
+  an exception on invalid input."
+  [codec]
+  (cond
+    (integer? codec)
+    (if (nat-int? codec)
+      (code->key codec codec)
+      (throw (ex-info (str "Multicodec codes cannot be negative: " codec)
+                      {:codec codec})))
+
+    (keyword? codec)
+    (if (key->code codec)
+      codec
+      (throw (ex-info
+               (str codec " does not map to a known multicodec code.")
+               {:codec codec})))
+
+    :else
+    (throw (ex-info
+             (str (pr-str codec)
+                  " is not a valid codec keyword or numeric code.")
+              {:codec codec}))))
+
+
+(defn resolve-code
+  "Resolve a keyword to a numeric code, or throws an exception on invalid
+  input."
+  [codec]
+  (cond
+    (integer? codec)
+    (if (nat-int? codec)
+      codec
+      (throw (ex-info (str "Multicodec codes cannot be negative: " codec)
+                      {:codec codec})))
+
+    (keyword? codec)
+    (or (key->code codec)
+        (throw (ex-info
+                 (str codec " does not map to a known multicodec code.")
+                 {:codec codec})))
+
+    :else
+    (throw (ex-info
+             (str (pr-str codec)
+                  " is not a valid codec keyword or numeric code.")
+              {:codec codec}))))

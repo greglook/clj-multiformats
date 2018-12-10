@@ -88,7 +88,8 @@
     (let [mhash (mhash/create :sha1 "deadbeef")
           buffer (b/byte-array (+ 4 (:length mhash)))]
       (is (= 6 (mhash/write-bytes mhash buffer 2)))
-      (is (bytes= [0x00 0x00 0x11 0x04 0xde 0xad 0xbe 0xef 0x00 0x00] buffer))))
+      (is (bytes= (b/init-bytes [0x00 0x00 0x11 0x04 0xde 0xad 0xbe 0xef 0x00 0x00])
+                  buffer))))
   (doseq [[hex [code algorithm bits digest]] examples]
     (let [mhash (mhash/create algorithm digest)]
       (is (= (/ (count hex) 2) (:length mhash)))

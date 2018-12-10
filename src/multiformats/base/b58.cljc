@@ -8,17 +8,13 @@
   "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
 
 
-(defn formatter
-  "Construct a function to format byte data as base58."
-  [alphabet]
-  (fn format
-    [data]
-    (abc/encode alphabet data)))
+(defn format-btc
+  "Format byte data as base58 using the bitcoin alphabet."
+  [data]
+  (abc/encode btc-alphabet data))
 
 
-(defn parser
-  "Construct a function to parse base58-encoded string as byte data."
-  [alphabet]
-  (fn parse
-    [string]
-    (abc/decode alphabet string)))
+(defn parse-btc
+  "Parse a base58-encoded string as byte data using the bitcoin alphabet."
+  [string]
+  (abc/decode btc-alphabet string))

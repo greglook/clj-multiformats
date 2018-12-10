@@ -128,8 +128,8 @@
 ;; ### Base58
 
 (defbase base58btc
-  :formatter (b58/formatter b58/btc-alphabet)
-  :parser (b58/parser b58/btc-alphabet))
+  :formatter b58/format-btc
+  :parser b58/parse-btc)
 
 
 ;; ### Base64 (RFC 4648)

@@ -22,7 +22,7 @@ This library includes support for:
 - **TODO:** multiaddr
 - Concise packed [codec identifiers](https://github.com/multiformats/multicodec).
 - Portable [cryptographic hashes](https://github.com/multiformats/multihash).
-- **TODO:** IPLD [CID](https://github.com/ipld/cid) content identifiers.
+- IPLD [CID](https://github.com/ipld/cid) content identifiers.
 - **TODO:** multistream
 
 

@@ -35,8 +35,9 @@
             (varint/encode 9223372036854775808))))
     (testing "out of buffer bounds"
       (let [buffer (b/byte-array 1)]
-        (is (thrown? #?(:clj Exception, :cljs js/Error)
-              (varint/write-bytes buffer 0 255))))))
+        (is (thrown-with-msg? #?(:clj Exception, :cljs js/Error)
+                              #"write index out of bounds"
+              (varint/write-bytes 255 buffer 0))))))
   (testing "decoding"
     (testing "varint larger than nine bytes"
       (is (thrown-with-msg? #?(:clj Exception, :cljs js/Error)

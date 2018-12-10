@@ -100,20 +100,13 @@
   (when (or (nil? digest) (zero? (alength digest)))
     (throw (ex-info "Cannot encode a multihash with an empty digest"
                     {:code code})))
-  (let [code-bytes (varint/encode code)
-        length-bytes (varint/encode (alength digest))
-        buffer (b/byte-array (+ (alength code-bytes)
-                                (alength length-bytes)
-                                (alength digest)))]
-    (b/copy code-bytes 0
-            buffer 0
-            (alength code-bytes))
-    (b/copy length-bytes 0
-            buffer (alength code-bytes)
-            (alength length-bytes))
-    (b/copy digest 0
-            buffer (+ (alength code-bytes) (alength length-bytes))
-            (alength digest))
+  (let [header (b/byte-array 8)
+        clength (varint/write-bytes code header 0)
+        llength (varint/write-bytes (alength digest) header clength)
+        hlength (+ clength llength)
+        buffer (b/byte-array (+ hlength (alength digest)))]
+    (b/copy header 0 buffer 0 hlength)
+    (b/copy digest 0 buffer hlength (alength digest))
     buffer))
 
 
@@ -262,7 +255,7 @@
   [algorithm digest]
   (let [code (resolve-code algorithm)
         digest (resolve-digest digest)]
-    (Multihash. (encode-bytes code digest) nil 0)))
+    (->Multihash (encode-bytes code digest) nil 0)))
 
 
 

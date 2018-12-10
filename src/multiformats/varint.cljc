@@ -15,7 +15,7 @@
 (defn write-bytes
   "Write a value as a varint to a byte array at the given offset. Returns the
   number of bytes written."
-  [^bytes buffer offset value]
+  [value ^bytes buffer offset]
   (when (neg? value)
     (throw (ex-info "Varints are unsigned and cannot be negative"
                     {:value value})))
@@ -50,7 +50,7 @@
   ^bytes
   [value]
   (let [buffer (b/byte-array 9)
-        size (write-bytes buffer 0 value)
+        size (write-bytes value buffer 0)
         result (b/byte-array size)]
     (b/copy buffer 0 result 0 size)
     result))

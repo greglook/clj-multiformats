@@ -8,25 +8,25 @@
     [multiformats.hash :as mhash])
   #?(:clj
      (:import
+       clojure.lang.ExceptionInfo
        java.io.ByteArrayInputStream
        java.nio.ByteBuffer)))
 
 
 (deftest constructor-validation
-  (is (thrown? #?(:clj clojure.lang.ExceptionInfo
-                  :cljs js/Error)
+  (is (thrown? #?(:clj ExceptionInfo, :cljs js/Error)
                (mhash/create true "0beec7b8"))
       "Unknown algorithm type should be rejected")
-  (is (thrown? #?(:clj clojure.lang.ExceptionInfo
-                  :cljs js/Error)
+  (is (thrown? #?(:clj ExceptionInfo, :cljs js/Error)
                (mhash/create :no-such-algo "0beec7b8"))
       "Unknown algorithm keyword should be rejected")
-  (is (thrown? #?(:clj clojure.lang.ExceptionInfo
-                  :cljs js/Error)
+  (is (thrown? #?(:clj ExceptionInfo, :cljs js/Error)
+               (mhash/create -1 "0beec7b8"))
+      "Negative algorithm code should be rejected")
+  (is (thrown? #?(:clj ExceptionInfo, :cljs js/Error)
                (mhash/create :sha1 nil))
       "Nil digest should be rejected")
-  (is (thrown? #?(:clj clojure.lang.ExceptionInfo
-                  :cljs js/Error)
+  (is (thrown? #?(:clj ExceptionInfo, :cljs js/Error)
                (mhash/create 0x11 (b/byte-array 0)))
       "Empty digest should be rejected"))
 
@@ -80,10 +80,18 @@
 
 (deftest example-coding
   (testing "Encoding is reflexive"
-    (let [mhash (mhash/create 0x02 "0beec7b8")]
-      (is (= mhash (mhash/decode (mhash/encode mhash))))))
+    (let [mhash (mhash/create 0x02 "0beec7b8")
+          encoded (mhash/encode mhash)]
+      (is (= 6 (:length mhash) (alength encoded)))
+      (is (= mhash (mhash/decode encoded)))))
+  (testing "buffer writes"
+    (let [mhash (mhash/create :sha1 "deadbeef")
+          buffer (b/byte-array (+ 4 (:length mhash)))]
+      (is (= 6 (mhash/write-bytes mhash buffer 2)))
+      (is (bytes= [0x00 0x00 0x11 0x04 0xde 0xad 0xbe 0xef 0x00 0x00] buffer))))
   (doseq [[hex [code algorithm bits digest]] examples]
     (let [mhash (mhash/create algorithm digest)]
+      (is (= (/ (count hex) 2) (:length mhash)))
       (is (= code (:code mhash)))
       (is (= algorithm (:algorithm mhash)))
       (is (= bits (:bits mhash)))

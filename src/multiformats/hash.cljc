@@ -57,7 +57,7 @@
 ;; ## Coding Functions
 
 #?(:cljs
-   (defn bytes?
+   (defn- bytes?
      "True if the argument is byte data."
      [x]
      (let [result (or (instance? js/Uint8Array x)
@@ -159,9 +159,7 @@
     (let [hc _hash]
       (if (zero? hc)
         (let [params (decode-parameters _bytes)
-              hc (int (-> (hash ::multihash)
-                          (hash-combine (hash (:code params)))
-                          (hash-combine (hash (:digest params)))))]
+              hc (hash [::multihash (:code params) (:digest params)])]
           (set! _hash hc)
           hc)
         hc)))
@@ -189,6 +187,7 @@
   (#?(:clj valAt, :cljs -lookup)
     [this k not-found]
     (case k
+      :length (alength _bytes)
       :code (first (read-header _bytes))
       :algorithm (let [[code] (read-header _bytes)]
                    (find-algorithm code))

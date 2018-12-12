@@ -205,6 +205,9 @@
 
 
 (deftest miscellaneous
+  (testing "binary padding"
+    (is (bytes= (b/init-bytes [0x01 0x23 0x45])
+                (mbase/parse "00010010001101000101"))))
   (testing "inspect"
     (let [info (mbase/inspect "zUXE7GvtEk8XTXs1GF8HSGbVA9FCX9SEBPe")]
       (is (map? info))

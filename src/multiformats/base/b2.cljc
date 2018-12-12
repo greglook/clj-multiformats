@@ -10,42 +10,45 @@
          BinaryCodec))))
 
 
-(defn- reverse-octets
-  "Reverse the octets (8-bit segments) a binary string."
-  [string]
-  (loop [octets nil
-         i 0]
-    (if (< i (count string))
-      (recur (cons (subs string i (+ i 8)) octets) (+ i 8))
-      (apply str octets))))
+#?(:clj
+   (defn- reverse-octets
+     "Reverse the octets (8-bit segments) a binary string."
+     [string]
+     (loop [octets nil
+            i 0]
+       (if (< i (count string))
+         (recur (cons (subs string i (+ i 8)) octets) (+ i 8))
+         (apply str octets)))))
 
 
-(defn- byte->octet
-  "Convert a byte value to a binary octet string."
-  [x]
-  (str
-    (if (zero? (bit-and x 0x80)) "0" "1")
-    (if (zero? (bit-and x 0x40)) "0" "1")
-    (if (zero? (bit-and x 0x20)) "0" "1")
-    (if (zero? (bit-and x 0x10)) "0" "1")
-    (if (zero? (bit-and x 0x08)) "0" "1")
-    (if (zero? (bit-and x 0x04)) "0" "1")
-    (if (zero? (bit-and x 0x02)) "0" "1")
-    (if (zero? (bit-and x 0x01)) "0" "1")))
+#?(:cljs
+   (defn- byte->octet
+     "Convert a byte value to a binary octet string."
+     [x]
+     (str
+       (if (zero? (bit-and x 0x80)) "0" "1")
+       (if (zero? (bit-and x 0x40)) "0" "1")
+       (if (zero? (bit-and x 0x20)) "0" "1")
+       (if (zero? (bit-and x 0x10)) "0" "1")
+       (if (zero? (bit-and x 0x08)) "0" "1")
+       (if (zero? (bit-and x 0x04)) "0" "1")
+       (if (zero? (bit-and x 0x02)) "0" "1")
+       (if (zero? (bit-and x 0x01)) "0" "1"))))
 
 
-(defn- octet->byte
-  "Convert a binary octet string to a byte value."
-  [octet]
-  (bit-or
-    (if (= "1" (subs octet 0 1)) 0x80 0x00)
-    (if (= "1" (subs octet 1 2)) 0x40 0x00)
-    (if (= "1" (subs octet 2 3)) 0x20 0x00)
-    (if (= "1" (subs octet 3 4)) 0x10 0x00)
-    (if (= "1" (subs octet 4 5)) 0x08 0x00)
-    (if (= "1" (subs octet 5 6)) 0x04 0x00)
-    (if (= "1" (subs octet 6 7)) 0x02 0x00)
-    (if (= "1" (subs octet 7 8)) 0x01 0x00)))
+#?(:cljs
+   (defn- octet->byte
+     "Convert a binary octet string to a byte value."
+     [octet]
+     (bit-or
+       (if (= "1" (subs octet 0 1)) 0x80 0x00)
+       (if (= "1" (subs octet 1 2)) 0x40 0x00)
+       (if (= "1" (subs octet 2 3)) 0x20 0x00)
+       (if (= "1" (subs octet 3 4)) 0x10 0x00)
+       (if (= "1" (subs octet 4 5)) 0x08 0x00)
+       (if (= "1" (subs octet 5 6)) 0x04 0x00)
+       (if (= "1" (subs octet 6 7)) 0x02 0x00)
+       (if (= "1" (subs octet 7 8)) 0x01 0x00))))
 
 
 (defn format
@@ -53,7 +56,7 @@
   [^bytes data]
   #?(:clj
      (reverse-octets (BinaryCodec/toAsciiString data))
-     :default ; OPTIMIZE: better cljs implementation
+     :cljs
      (reduce
        (fn build-str
          [string i]
@@ -70,7 +73,7 @@
                       string))]
     #?(:clj
        (.toByteArray (BinaryCodec.) (reverse-octets string))
-       :default ; OPTIMIZE: better cljs implementation
+       :cljs
        (let [buffer (b/byte-array (int (/ (count string) 8)))]
          (dotimes [i (alength buffer)]
            (let [octet (subs string (* i 8) (* (inc i) 8))]

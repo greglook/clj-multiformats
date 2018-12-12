@@ -48,7 +48,7 @@
 (defn- encode-bytes
   "Encode a cid version, codec, and multihash into a byte array."
   [version codec mhash]
-  (let [header (b/byte-array 16)
+  (let [header (b/byte-array 8)
         vlength (varint/write-bytes version header 0)
         clength (varint/write-bytes codec header vlength)
         hlength (+ vlength clength)
@@ -117,16 +117,17 @@
 
   (#?(:clj compareTo, :cljs -compare)
     [this that]
-    (if (= this that)
-      0
-      (let [[version codec _] (read-header _bytes)
-            vc (compare version (:version that))]
-        (if (zero? vc)
-          (let [mcc (compare codec (:code that))]
-            (if (zero? mcc)
-              (compare (:hash this) (:hash that))
-              mcc))
-          vc))))
+    (cond
+      (identical? this that) 0
+
+      (instance? ContentID that)
+      (b/compare _bytes (#?(:clj ._bytes :cljs .-_bytes) ^ContentID that))
+
+      :else
+      (throw (ex-info
+               (str "Cannot compare CID value to " (type that))
+               {:this this
+                :that that}))))
 
 
   ILookup
@@ -214,7 +215,7 @@
   Returns the number of bytes written."
   [^ContentID cid ^bytes buffer offset]
   (let [encoded (inner-bytes cid)]
-    (b/copy encoded 0 buffer offset (alength encoded))
+    (b/copy encoded buffer offset)
     (alength encoded)))
 
 
@@ -223,10 +224,7 @@
   array."
   ^bytes
   [^ContentID cid]
-  (let [encoded (inner-bytes cid)
-        buffer (b/byte-array (alength encoded))]
-    (b/copy encoded 0 buffer 0 (alength encoded))
-    buffer))
+  (b/copy (inner-bytes cid)))
 
 
 (defn decode

@@ -50,9 +50,9 @@
   ^bytes
   [value]
   (let [buffer (b/byte-array 9)
-        size (write-bytes value buffer 0)
-        result (b/byte-array size)]
-    (b/copy buffer 0 result 0 size)
+        length (write-bytes value buffer 0)
+        result (b/byte-array length)]
+    (b/copy buffer 0 result 0 length)
     result))
 
 

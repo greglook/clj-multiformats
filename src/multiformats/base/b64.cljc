@@ -1,7 +1,6 @@
 (ns multiformats.base.b64
   "Base64 implementation from RFC 4648."
   (:require
-    [alphabase.bytes :as b]
     [clojure.string :as str]
     #?(:cljs [goog.crypt.base64 :as gcb64]))
   #?(:clj

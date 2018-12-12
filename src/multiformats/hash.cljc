@@ -56,16 +56,6 @@
 
 ;; ## Coding Functions
 
-#?(:cljs
-   (defn- bytes?
-     "True if the argument is byte data."
-     [x]
-     (let [result (or (instance? js/Uint8Array x)
-                      (and (instance? js/Array x)
-                           (integer? (first x))))]
-       result)))
-
-
 (defn- read-header
   "Read the algorithm code and digest bit size from the encoded bytes. Returns
   a tuple of the numeric code, byte length, and number of bytes read."
@@ -162,12 +152,17 @@
 
   (#?(:clj compareTo, :cljs -compare)
     [this that]
-    ; OPTIMIZE: compare byte representations directly
     (cond
-      (= this that) 0
-      (< (:code this) (:code that)) -1
-      (> (:code this) (:code that))  1
-      :else (compare (:digest this) (:digest that))))
+      (identical? this that) 0
+
+      (instance? Multihash that)
+      (b/compare _bytes (#?(:clj ._bytes :cljs .-_bytes) ^Multihash that))
+
+      :else
+      (throw (ex-info
+               (str "Cannot compare multihash value to " (type that))
+               {:this this
+                :that that}))))
 
 
   ILookup
@@ -237,7 +232,7 @@
   "Resolve a digest to a byte array, or throws an exception on invalid input."
   [digest]
   (cond
-    (bytes? digest)
+    (b/bytes? digest)
     digest
 
     (string? digest)
@@ -284,9 +279,7 @@
   "Write an encoded multihash to a byte array at the given offset. Returns the
   number of bytes written."
   [^Multihash mhash ^bytes buffer offset]
-  (let [encoded (inner-bytes mhash)]
-    (b/copy encoded 0 buffer offset (alength encoded))
-    (alength encoded)))
+  (b/copy (inner-bytes mhash) buffer offset))
 
 
 ; TODO: read/write byte streams?
@@ -296,10 +289,7 @@
   "Encode a multihash into a binary representation. Returns the byte array."
   ^bytes
   [^Multihash mhash]
-  (let [encoded (inner-bytes mhash)
-        buffer (b/byte-array (alength encoded))]
-    (b/copy encoded 0 buffer 0 (alength encoded))
-    buffer))
+  (b/copy (inner-bytes mhash)))
 
 
 (defn decode
@@ -351,7 +341,7 @@
                         :cljs (crypt/stringToUtf8ByteArray content))]
       (.update hasher ^bytes utf8-bytes))
 
-    (bytes? content)
+    (b/bytes? content)
     (.update hasher ^bytes content)
 
     #?@(:clj

@@ -31,16 +31,12 @@
 (defn format
   "Format byte data as a hexadecimal-encoded string."
   [^bytes data]
-  #?(:clj
-     (Hex/encodeHexString data true)
-     :cljs
-     (crypt/byteArrayToHex data)))
+  #?(:clj (Hex/encodeHexString data true)
+     :cljs (crypt/byteArrayToHex data)))
 
 
 (defn parse
   "Parse a hexadecimal-encoded string into bytes."
   [^String string]
-  #?(:clj
-     (Hex/decodeHex string)
-     :cljs
-     (crypt/hexToByteArray string)))
+  #?(:clj (Hex/decodeHex string)
+     :cljs (crypt/hexToByteArray string)))

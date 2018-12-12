@@ -25,7 +25,7 @@
    [meta-merge "1.0.0"]]
 
   :dependencies
-  [[mvxcvi/alphabase "1.0.0"]
+  [[mvxcvi/alphabase "2.0.1-SNAPSHOT"]
    [commons-codec "1.11"]]
 
   :hiera

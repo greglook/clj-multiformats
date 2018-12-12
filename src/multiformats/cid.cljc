@@ -180,3 +180,66 @@
     (let [version 1
           encoded (encode-bytes version codec mhash)]
       (->ContentID encoded nil 0))))
+
+
+
+;; ## Binary Serialization
+
+(defn- inner-bytes
+  "Retrieve the inner encoded bytes from a CID value."
+  ^bytes
+  [^ContentID cid]
+  (#?(:clj ._bytes :cljs .-_bytes) cid))
+
+
+(defn read-bytes
+  "Read a content identifier from a byte array. Returns a tuple containing the
+  CID and the number of bytes read."
+  [^bytes data offset]
+  (let [[version vlength] (varint/read-bytes data offset)]
+    (when (not= 1 version)
+      (throw (ex-info
+               (str "Unable to decode CID version " (pr-str version))
+               {:version version})))
+    (let [[code clength] (varint/read-bytes data (+ offset vlength))
+          [mhash hlength] (mhash/read-bytes data (+ offset vlength clength))
+          length (+ vlength clength hlength)
+          buffer (b/byte-array length)]
+      (b/copy data offset buffer 0 length)
+      [(->ContentID buffer nil 0) length])))
+
+
+(defn write-bytes
+  "Write an encoded content identifier to a byte array at the given offset.
+  Returns the number of bytes written."
+  [^ContentID cid ^bytes buffer offset]
+  (let [encoded (inner-bytes cid)]
+    (b/copy encoded 0 buffer offset (alength encoded))
+    (alength encoded)))
+
+
+(defn encode
+  "Encode a content identifier into a binary representation. Returns the byte
+  array."
+  ^bytes
+  [^ContentID cid]
+  (let [encoded (inner-bytes cid)
+        buffer (b/byte-array (alength encoded))]
+    (b/copy encoded 0 buffer 0 (alength encoded))
+    buffer))
+
+
+(defn decode
+  "Decode a content identifier from a byte array."
+  [^bytes data]
+  (if (and (= 34 (alength data))
+           (= 0x12 (b/get-byte data 0))
+           (= 0x20 (b/get-byte data 1)))
+    ; v0 CID (bare multihash)
+    (let [mhash (mhash/decode data)
+          ; This is a bit of a departure from the IPLD/CID spec, but using the
+          ; raw codec for 'unknown' seems generally more sensible.
+          encoded (encode-bytes 0 :raw mhash)]
+      (->ContentID encoded nil 0))
+    ; v1+ CID
+    (first (read-bytes data 0))))

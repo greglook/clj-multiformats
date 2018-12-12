@@ -243,3 +243,24 @@
       (->ContentID encoded nil 0))
     ; v1+ CID
     (first (read-bytes data 0))))
+
+
+
+;; ## String Serialization
+
+(defn format
+  "Format a CID into a string representation. Returns a multibase-prefixed
+  string representing the encoded value. Uses base32 if not otherwise
+  specified."
+  ([cid]
+   (format :base32 cid))
+  ([base cid]
+   (mbase/format base (inner-bytes cid))))
+
+
+(defn parse
+  "Parse a content identifier from a base-encoded string."
+  [string]
+  (if (and (= 46 (count string)) (str/starts-with? string "Qm"))
+    (decode (b58/parse-btc string))
+    (decode (mbase/parse string))))

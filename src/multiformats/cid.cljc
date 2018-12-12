@@ -174,7 +174,7 @@
 (defn create
   "Construct a new v1 content identifier for a known codec type and multihash."
   [codec mhash]
-  (when-not (instance? Multihash mhash)
+  (when-not (instance? multiformats.hash.Multihash mhash)
     (throw (ex-info (str "Cannot construct CID with non-multihash value: "
                          (pr-str mhash))
                     {:codec codec

@@ -60,3 +60,63 @@
     (is (empty? (meta a)) "values start with empty metadata")
     (is (= :bar/baz (:foo (meta a'))) "metadata can be associated with value")
     (is (= a a') "metadata does not affect equality")))
+
+
+(deftest binary-serialization
+  (testing "v0"
+    (let [mh (mhash/sha2-256 "hello world")
+          encoded (mhash/encode mh)
+          cid (cid/decode encoded)]
+      (is (= 0 (:version cid)))
+      (is (= :raw (:codec cid)))
+      (is (= mh (:hash cid)))
+      (is (bytes= encoded (cid/encode cid)))
+      (let [buffer (b/byte-array (+ 4 (:length cid)))]
+        (is (= (:length cid) (cid/write-bytes cid buffer 2)))
+        (is (= [0x00 0x00 0x12 0x20]
+               (take 4 (b/byte-seq buffer)))))))
+  (testing "v1"
+    (let [mh (mhash/sha2-256 "hello world")
+          cid (cid/create :cbor mh)]
+      (is (= 1 (:version cid)))
+      (is (= :cbor (:codec cid)))
+      (is (= mh (:hash cid)))
+      (let [encoded (cid/encode cid)]
+        (is (= (alength encoded) (:length cid)))
+        (is (= cid (cid/decode encoded))))
+      (let [buffer (b/byte-array (+ 4 (:length cid)))]
+        (is (= (:length cid) (cid/write-bytes cid buffer 1)))
+        (is (= [0x00 0x01 0x51 0x12 0x20]
+               (take 5 (b/byte-seq buffer)))))))
+  (testing "bad input"
+    (let [encoded (doto (b/byte-array 34)
+                    (b/set-byte 0 0x02))]
+      (is (thrown-with-msg? #?(:clj ExceptionInfo, :cljs js/Error)
+                            #"Unable to decode CID version 2"
+            (cid/decode encoded))))))
+
+
+(deftest string-serialization
+  (testing "v0"
+    (let [b58 "Qmd8kgzaFLGYtTS1zfF37qKGgYQd5yKcQMyBeSa8UkUz4W"
+          mh (mhash/sha2-256 "foo bar baz")
+          encoded (mhash/encode mh)
+          cid (cid/decode encoded)]
+      (is (= 34 (:length cid)))
+      (is (= 0 (:version cid)))
+      (is (= :raw (:codec cid)))
+      (is (= b58 (cid/format cid)))
+      (is (= cid (cid/parse b58)))
+      (is (thrown-with-msg? #?(:clj ExceptionInfo, :cljs js/Error)
+                            #"v0 CID values cannot be formatted in alternative bases"
+            (cid/format :base32 cid)))))
+  (testing "v1"
+    (let [b58 "zb2rhe5P4gXftAwvA4eXQ5HJwsER2owDyS9sKaQRRVQPn93bA"
+          b32 "bafkreidon73zkcrwdb5iafqtijxildoonbwnpv7dyd6ef3qdgads2jc4su"
+          cid (cid/parse b58)]
+      (is (= 36 (:length cid)))
+      (is (= 1 (:version cid)))
+      (is (= :raw (:codec cid)))
+      (is (= b58 (cid/format :base58btc cid)))
+      (is (= b32 (cid/format cid)))
+      (is (= cid (cid/parse b32))))))

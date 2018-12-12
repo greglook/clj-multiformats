@@ -141,7 +141,9 @@
     [this k not-found]
     (let [[version codec hlength] (read-header _bytes)]
       (case k
-        :length (alength _bytes)
+        :length (if (zero? version)
+                  (- (alength _bytes) hlength)
+                  (alength _bytes))
         :version version
         :codec (mcodec/resolve-key codec)
         :code codec
@@ -172,15 +174,15 @@
 (defn create
   "Construct a new v1 content identifier for a known codec type and multihash."
   [codec mhash]
-  (let [codec (mcodec/resolve-code codec)]
-    (when-not (instance? Multihash mhash)
-      (throw (ex-info (str "Cannot construct CID with non-multihash value: "
-                           (pr-str mhash))
-                      {:codec codec
-                       :hash mhash})))
-    (let [version 1
-          encoded (encode-bytes version codec mhash)]
-      (->ContentID encoded nil 0))))
+  (when-not (instance? Multihash mhash)
+    (throw (ex-info (str "Cannot construct CID with non-multihash value: "
+                         (pr-str mhash))
+                    {:codec codec
+                     :hash mhash})))
+  (let [version 1
+        code (mcodec/resolve-code codec)
+        encoded (encode-bytes version code mhash)]
+    (->ContentID encoded nil 0)))
 
 
 
@@ -214,9 +216,11 @@
   "Write an encoded content identifier to a byte array at the given offset.
   Returns the number of bytes written."
   [^ContentID cid ^bytes buffer offset]
-  (let [encoded (inner-bytes cid)]
-    (b/copy encoded buffer offset)
-    (alength encoded)))
+  (let [encoded (inner-bytes cid)
+        [version code hsize] (read-header encoded)]
+    (if (zero? version)
+      (b/copy encoded hsize buffer offset (- (alength encoded) hsize))
+      (b/copy encoded buffer offset))))
 
 
 (defn encode
@@ -224,7 +228,9 @@
   array."
   ^bytes
   [^ContentID cid]
-  (b/copy (inner-bytes cid)))
+  (if (zero? (:version cid))
+    (mhash/encode (:hash cid))
+    (b/copy (inner-bytes cid))))
 
 
 (defn decode
@@ -237,7 +243,8 @@
     (let [mhash (mhash/decode data)
           ; This is a bit of a departure from the IPLD/CID spec, but using the
           ; raw codec for 'unknown' seems generally more sensible.
-          encoded (encode-bytes 0 :raw mhash)]
+          code (mcodec/resolve-code :raw)
+          encoded (encode-bytes 0 code mhash)]
       (->ContentID encoded nil 0))
     ; v1+ CID
     (first (read-bytes data 0))))
@@ -251,9 +258,14 @@
   string representing the encoded value. Uses base32 if not otherwise
   specified."
   ([cid]
-   (format :base32 cid))
+   (if (zero? (:version cid))
+     (mbase/format* :base58btc (mhash/encode (:hash cid)))
+     (format :base32 cid)))
   ([base cid]
-   (mbase/format base (inner-bytes cid))))
+   (if (zero? (:version cid))
+     (throw (ex-info "v0 CID values cannot be formatted in alternative bases"
+                     {:cid cid}))
+     (mbase/format base (inner-bytes cid)))))
 
 
 (defn parse

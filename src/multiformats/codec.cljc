@@ -93,6 +93,9 @@
   (into {} (map (juxt val key)) key->code))
 
 
+; TODO: register-codec!
+
+
 (defn resolve-key
   "Resolve a codec to a keyword name or falls back to a numeric code, or throws
   an exception on invalid input."

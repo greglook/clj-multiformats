@@ -289,5 +289,4 @@
   [^String string]
   (let [prefix (get-prefix string)]
     {:prefix prefix
-     :base (prefix->base prefix)
-     :data (parse string)}))
+     :base (prefix->base prefix)}))

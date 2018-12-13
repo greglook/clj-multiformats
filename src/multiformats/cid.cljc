@@ -291,4 +291,4 @@
              :code (:code cid)
              :hash (:hash cid)}
       (and (string? x) (pos? (:version cid)))
-      (merge (dissoc (mbase/inspect x) :data)))))
+      (merge (mbase/inspect x)))))

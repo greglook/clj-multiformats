@@ -1,0 +1,30 @@
+version: 2
+
+jobs:
+  build:
+    working_drectory: ~/code
+    docker:
+      - image: circleci/clojure:openjdk-8-lein-2.8.1
+    environment:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - run: sudo apt-get update && sudo apt-get install -y rhino phantomjs
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-{{ checksum "project.clj" }}
+            - v1-
+      - run: lein deps
+      - run: lein clj:test
+      - run: lein cljs:test
+      - run: lein cloverage --codecov
+      - save_cache:
+          key: v1-{{ checksum "project.clj" }}
+          paths:
+            - ~/.m2
+      - store_artifacts:
+          path: target/coverage
+          destination: coverage
+      - run:
+          name: Publish Coverage
+          command: "bash <(curl -s https://codecov.io/bash) -f target/coverage/codecov.json"

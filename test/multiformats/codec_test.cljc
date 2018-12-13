@@ -7,7 +7,29 @@
     [multiformats.codec :as mcodec]))
 
 
-; TODO: register-codec
+(deftest codec-registration
+  (testing "registration"
+    (is (nil? (mcodec/unregister! :baz)))
+    (is (nil? (mcodec/key->code :baz)))
+    (is (nil? (mcodec/register! :baz 0x1234)))
+    (is (= 0x1234 (mcodec/key->code :baz)))
+    (is (= 0x1234 (mcodec/resolve-code :baz))))
+  (testing "checks"
+    (is (thrown-with-msg? #?(:clj Exception, :cljs js/Error)
+                          #"Invalid arguments"
+          (mcodec/register! 0 :foo)))
+    (is (thrown-with-msg? #?(:clj Exception, :cljs js/Error)
+                          #"Codec cbor is already registered with code 81"
+          (mcodec/register! :cbor 0x1234)))
+    (is (thrown-with-msg? #?(:clj Exception, :cljs js/Error)
+                          #"Code 81 is already registered by codec cbor"
+          (mcodec/register! :foo 0x51))))
+  (testing "unregistration"
+    (is (nil? (mcodec/unregister! :baz)))
+    (is (nil? (mcodec/unregister! :baz))
+        "repeat unregistration should succeed")
+    (is (nil? (mcodec/key->code :baz)))
+    (is (nil? (mcodec/register! :baz 0x1234)))))
 
 
 (deftest resolution

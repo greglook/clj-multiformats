@@ -93,7 +93,48 @@
   (into {} (map (juxt val key)) key->code))
 
 
-; TODO: register-codec!
+(defn register!
+  "Register a new codec keyword and numeric code pair."
+  [codec-key code]
+  (when-not (and (keyword? codec-key)
+                 (integer? code)
+                 (not (neg? code)))
+    (throw (ex-info "Invalid arguments given to register-codec!"
+                    {:key codec-key
+                     :code code})))
+  (when-let [extant-code (key->code codec-key)]
+    (when (not= code extant-code)
+      (throw (ex-info
+               (str "Codec " (name codec-key)
+                    " is already registered with code " extant-code)
+               {:key codec-key
+                :code code
+                :extant extant-code}))))
+  (when-let [extant-key (code->key code)]
+    (when (not= codec-key extant-key)
+      (throw (ex-info
+               (str "Code " code " is already registered by codec "
+                    (name extant-key))
+               {:key codec-key
+                :code code
+                :extant extant-key}))))
+  #?(:clj (alter-var-root #'key->code assoc codec-key code)
+     :cljs (set! key->code (assoc key->code codec-key code)))
+  #?(:clj (alter-var-root #'code->key assoc code codec-key)
+     :cljs (set! code->key (assoc code->key code codec-key)))
+  nil)
+
+
+(defn unregister!
+  "Remove the registration for an existing codec key. Does not throw an error
+  if the key is not registered already."
+  [codec-key]
+  (when-let [code (key->code codec-key)]
+    #?(:clj (alter-var-root #'key->code dissoc codec-key)
+       :cljs (set! key->code (dissoc key->code codec-key)))
+    #?(:clj (alter-var-root #'code->key dissoc code)
+       :cljs (set! code->key (dissoc code->key code))))
+  nil)
 
 
 (defn resolve-key

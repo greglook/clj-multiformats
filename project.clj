@@ -33,6 +33,11 @@
    ;:vertical false
    :show-external false}
 
+  :codox
+  {:metadata {:doc/format :markdown}
+   :source-uri "https://github.com/greglook/clj-multiformats/blob/master/{filepath}#L{line}"
+   :output-path "target/doc/api"}
+
   :cljsbuild
   {:builds [{:id "test"
              :source-paths ["src" "test"]

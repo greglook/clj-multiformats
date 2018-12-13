@@ -38,13 +38,21 @@
 
 
 (deftest cid-properties
-  (let [cid (cid/create :cbor (mhash/sha2-256 "test input"))]
+  (let [mh (mhash/sha2-256 "test input")
+        cid (cid/create :cbor mh)]
     (is (= 36 (:length cid)))
     (is (= 1 (:version cid)))
     (is (= :cbor (:codec cid)))
     (is (= 0x51 (:code cid)))
     (is (= :sha2-256 (get-in cid [:hash :algorithm])))
-    (is (nil? (:foo cid)))))
+    (is (nil? (:foo cid)))
+    (is (= {:length 36
+            :version 1
+            :codec :cbor
+            :code 0x51
+            :hash mh}
+           (cid/inspect cid)))
+    (is (nil? (cid/inspect nil)))))
 
 
 (deftest cid-rendering
@@ -109,14 +117,49 @@
       (is (= cid (cid/parse b58)))
       (is (thrown-with-msg? #?(:clj ExceptionInfo, :cljs js/Error)
                             #"v0 CID values cannot be formatted in alternative bases"
-            (cid/format :base32 cid)))))
+            (cid/format :base32 cid)))
+      (is (= {:length 34
+              :version 0
+              :codec :raw
+              :code 0x55
+              :hash mh}
+             (cid/inspect cid)))
+      (is (= {:length 34
+              :version 0
+              :codec :raw
+              :code 0x55
+              :hash mh}
+             (cid/inspect encoded)))
+      (is (= {:length 34
+              :version 0
+              :codec :raw
+              :code 0x55
+              :hash mh}
+             (cid/inspect b58)))))
   (testing "v1"
     (let [b58 "zb2rhe5P4gXftAwvA4eXQ5HJwsER2owDyS9sKaQRRVQPn93bA"
           b32 "bafkreidon73zkcrwdb5iafqtijxildoonbwnpv7dyd6ef3qdgads2jc4su"
-          cid (cid/parse b58)]
+          cid (cid/parse b58)
+          mh (:hash cid)]
       (is (= 36 (:length cid)))
       (is (= 1 (:version cid)))
       (is (= :raw (:codec cid)))
       (is (= b58 (cid/format :base58btc cid)))
       (is (= b32 (cid/format cid)))
-      (is (= cid (cid/parse b32))))))
+      (is (= cid (cid/parse b32)))
+      (is (= {:length 36
+              :version 1
+              :codec :raw
+              :code 0x55
+              :hash mh
+              :prefix "b"
+              :base :base32}
+             (cid/inspect b32)))
+      (is (= {:length 36
+              :version 1
+              :codec :raw
+              :code 0x55
+              :hash mh
+              :prefix "z"
+              :base :base58btc}
+             (cid/inspect b58))))))

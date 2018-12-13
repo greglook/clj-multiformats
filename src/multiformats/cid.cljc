@@ -274,3 +274,21 @@
   (if (and (= 46 (count string)) (str/starts-with? string "Qm"))
     (decode (b58/parse-btc string))
     (decode (mbase/parse string))))
+
+
+(defn inspect
+  "Inspect a CID, encoded byte array, or string and return a map of information
+  about the content identifier."
+  [x]
+  (when-let [cid (cond
+                   (instance? ContentID x) x
+                   (b/bytes? x) (decode x)
+                   (string? x) (parse x)
+                    :else nil)]
+    (cond-> {:length (:length cid)
+             :version (:version cid)
+             :codec (:codec cid)
+             :code (:code cid)
+             :hash (:hash cid)}
+      (and (string? x) (pos? (:version cid)))
+      (merge (dissoc (mbase/inspect x) :data)))))

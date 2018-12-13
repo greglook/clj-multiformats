@@ -27,7 +27,4 @@
    :p2p-circuit 0x0122
    :dns4        0x36
    :dns6        0x37
-   :dnsaddr     0x38
-   ,,,})
-
-
+   :dnsaddr     0x38})

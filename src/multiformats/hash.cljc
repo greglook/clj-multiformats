@@ -7,28 +7,27 @@
   (:refer-clojure :exclude [test])
   #?(:cljs
      (:require-macros
-       [multiformats.hash :refer [defhash]]))
+      [multiformats.hash :refer [defhash]]))
   (:require
-    [alphabase.bytes :as b]
-    #?@(:cljs
-        [[goog.crypt :as crypt]
-         [goog.crypt.Md5]
-         [goog.crypt.Sha1]
-         [goog.crypt.Sha256]
-         [goog.crypt.Sha512]])
-    [multiformats.base.b16 :as hex]
-    [multiformats.varint :as varint])
+   [alphabase.bytes :as b]
+   #?@(:cljs
+       [[goog.crypt :as crypt]
+        [goog.crypt.Md5]
+        [goog.crypt.Sha1]
+        [goog.crypt.Sha256]
+        [goog.crypt.Sha512]])
+   [multiformats.base.b16 :as hex]
+   [multiformats.varint :as varint])
   #?(:clj
      (:import
-       (clojure.lang
-         ILookup
-         IMeta
-         IObj
-         Keyword)
-       java.io.InputStream
-       java.nio.ByteBuffer
-       java.security.MessageDigest)))
-
+      (clojure.lang
+       ILookup
+       IMeta
+       IObj
+       Keyword)
+      java.io.InputStream
+      java.nio.ByteBuffer
+      java.security.MessageDigest)))
 
 (def codes
   "Hash algorithm identifiers for use in multihashes."
@@ -56,6 +55,7 @@
 
 ;; ## Coding Functions
 
+
 (defn- read-header
   "Read the algorithm code and digest bit size from the encoded bytes. Returns
   a tuple of the numeric code, byte length, and number of bytes read."
@@ -64,13 +64,11 @@
         [length lsize] (varint/read-bytes data csize)]
     [code length (+ csize lsize)]))
 
-
 (defn- find-algorithm
   "Look up an algorithm key by code. Returns nil if no matching algorithm is
   present in the table."
   [code]
   (some #(when (= code (val %)) (key %)) codes))
-
 
 (defn- decode-parameters
   "Read the header and digest from the encoded bytes."
@@ -81,7 +79,6 @@
      :algorithm (find-algorithm code)
      :length length
      :digest digest}))
-
 
 (defn- encode-bytes
   "Encode a multihash algorithm, digest length, and digest bytes into a single
@@ -103,10 +100,11 @@
 
 ;; ## Multihash Type
 
+
 (deftype Multihash
-  [^bytes _bytes
-   _meta
-   ^:unsynchronized-mutable _hash]
+         [^bytes _bytes
+          _meta
+          ^:unsynchronized-mutable _hash]
 
   Object
 
@@ -118,9 +116,7 @@
                  (:code params))]
       (str "hash:" algo \: (:digest params))))
 
-
   #?(:clj java.io.Serializable)
-
 
   #?(:cljs IEquiv)
 
@@ -134,7 +130,6 @@
 
       :else false))
 
-
   #?(:cljs IHash)
 
   (#?(:clj hashCode, :cljs -hash)
@@ -146,7 +141,6 @@
           (set! _hash hc)
           hc)
         hc)))
-
 
   #?(:clj Comparable, :cljs IComparable)
 
@@ -160,17 +154,15 @@
 
       :else
       (throw (ex-info
-               (str "Cannot compare multihash value to " (type that))
-               {:this this
-                :that that}))))
-
+              (str "Cannot compare multihash value to " (type that))
+              {:this this
+               :that that}))))
 
   ILookup
 
   (#?(:clj valAt, :cljs -lookup)
     [this k]
     (#?(:clj .valAt, :cljs -lookup) this k nil))
-
 
   (#?(:clj valAt, :cljs -lookup)
     [this k not-found]
@@ -184,13 +176,11 @@
       :digest (:digest (decode-parameters _bytes))
       not-found))
 
-
   IMeta
 
   (#?(:clj meta, :cljs -meta)
     [this]
     _meta)
-
 
   #?(:clj IObj, :cljs IWithMeta)
 
@@ -198,12 +188,12 @@
     [this meta-map]
     (Multihash. _bytes meta-map _hash)))
 
-
 (alter-meta! #'->Multihash assoc :private true)
 
 
 
 ;; ## Constructors
+
 
 (defn- resolve-code
   "Resolve an algorithm to a numeric code, or throws an exception on invalid input."
@@ -218,15 +208,14 @@
     (keyword? algorithm)
     (or (get codes algorithm)
         (throw (ex-info
-                 (str algorithm " does not map to a known hash algorithm code.")
-                 {:algorithm algorithm})))
+                (str algorithm " does not map to a known hash algorithm code.")
+                {:algorithm algorithm})))
 
     :else
     (throw (ex-info
-             (str (pr-str algorithm)
-                  " is not a valid algorithm keyword or numeric code.")
-              {:algorithm algorithm}))))
-
+            (str (pr-str algorithm)
+                 " is not a valid algorithm keyword or numeric code.")
+            {:algorithm algorithm}))))
 
 (defn- resolve-digest
   "Resolve a digest to a byte array, or throws an exception on invalid input."
@@ -240,9 +229,8 @@
 
     :else
     (throw (ex-info
-             (str (pr-str digest) " is not a byte array or hex string.")
-             {:digest digest}))))
-
+            (str (pr-str digest) " is not a byte array or hex string.")
+            {:digest digest}))))
 
 (defn create
   "Constructs a new Multihash identifier from the given algorithm key (or
@@ -256,12 +244,12 @@
 
 ;; ## Serialization
 
+
 (defn- inner-bytes
   "Retrieve the inner encoded bytes from a multihash value."
   ^bytes
   [^Multihash mhash]
   (#?(:clj ._bytes :cljs .-_bytes) mhash))
-
 
 (defn read-bytes
   "Read a multihash from a byte array. Returns a tuple containing the multihash
@@ -273,7 +261,6 @@
         buffer (b/byte-array total-size)]
     (b/copy data offset buffer 0 total-size)
     [(Multihash. buffer nil 0) total-size]))
-
 
 (defn write-bytes
   "Write an encoded multihash to a byte array at the given offset. Returns the
@@ -291,12 +278,10 @@
   [^Multihash mhash]
   (b/copy (inner-bytes mhash)))
 
-
 (defn decode
   "Decode a multihash by reading data from a byte array."
   [^bytes data]
   (first (read-bytes data 0)))
-
 
 (defn hex
   "Format a multihash as a hex string."
@@ -307,19 +292,20 @@
 
 ;; ## Digest Constructors
 
+
 (defn- init-hasher
   "Initialize a hashing algorithm to digest some content. Returns nil if the
   algorithm is not supported on the current platform."
   [algorithm]
   #?(:clj
      (some->
-       (case algorithm
-         :md5      "MD5"
-         :sha1     "SHA-1"
-         :sha2-256 "SHA-256"
-         :sha2-512 "SHA-512"
-         nil)
-       (MessageDigest/getInstance))
+      (case algorithm
+        :md5      "MD5"
+        :sha1     "SHA-1"
+        :sha2-256 "SHA-256"
+        :sha2-512 "SHA-512"
+        nil)
+      (MessageDigest/getInstance))
      :cljs
      (case algorithm
        :md5      (goog.crypt.Md5.)
@@ -327,7 +313,6 @@
        :sha2-256 (goog.crypt.Sha256.)
        :sha2-512 (goog.crypt.Sha512.)
        nil)))
-
 
 (defn- digest-content
   "Constructs a cryptographic digest for a given hasher and content. Content
@@ -362,7 +347,6 @@
                     {:content content})))
   (.digest hasher))
 
-
 (defmacro ^:private defhash
   "Defines a new hashing function for the given algorithm."
   [algo-sym]
@@ -375,12 +359,10 @@
            digest# (digest-content hasher# ~'content)]
        (create algo-key# digest#))))
 
-
 (defhash md5)
 (defhash sha1)
 (defhash sha2-256)
 (defhash sha2-512)
-
 
 (def functions
   "Map of hash digest functions available."
@@ -388,7 +370,6 @@
    :sha1 sha1
    :sha2-256 sha2-256
    :sha2-512 sha2-512})
-
 
 (defn test
   "Determines whether a multihash is a correct identifier for some content by
@@ -402,8 +383,8 @@
             other (create (:code mhash) digest)]
         (= mhash other))
       (throw (ex-info
-               (str "No supported hashing function for algorithm "
-                    (or (:algorithm mhash) (:code mhash))
-                    " to validate " mhash)
-               {:code (:code mhash)
-                :algorithm (:algorithm mhash)})))))
+              (str "No supported hashing function for algorithm "
+                   (or (:algorithm mhash) (:code mhash))
+                   " to validate " mhash)
+              {:code (:code mhash)
+               :algorithm (:algorithm mhash)})))))

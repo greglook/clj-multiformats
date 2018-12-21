@@ -7,16 +7,15 @@
   (:refer-clojure :exclude [bases format])
   #?(:cljs
      (:require-macros
-       [multiformats.base :refer [defbase]]))
+      [multiformats.base :refer [defbase]]))
   (:require
-    [clojure.string :as str]
-    [multiformats.base.b2 :as b2]
-    [multiformats.base.b8 :as b8]
-    [multiformats.base.b16 :as b16]
-    [multiformats.base.b32 :as b32]
-    [multiformats.base.b58 :as b58]
-    [multiformats.base.b64 :as b64]))
-
+   [clojure.string :as str]
+   [multiformats.base.b2 :as b2]
+   [multiformats.base.b8 :as b8]
+   [multiformats.base.b16 :as b16]
+   [multiformats.base.b32 :as b32]
+   [multiformats.base.b58 :as b58]
+   [multiformats.base.b64 :as b64]))
 
 (def codes
   "Map of base keys to multicodec packed symbols from the standard table."
@@ -50,6 +49,7 @@
 
 ;; ## Base Encodings
 
+
 (defmacro ^:private defbase
   "Define a new base map in a var."
   [base-sym & {:as params}]
@@ -59,12 +59,14 @@
 
 ;; ### Binary
 
+
 (defbase base2
   :formatter b2/format
   :parser b2/parse)
 
 
 ;; ### Octal
+
 
 (defbase base8
   :formatter b8/format
@@ -73,10 +75,10 @@
 
 ;; ### Hexadecimal
 
+
 (defbase base16
   :formatter b16/format
   :parser b16/parse)
-
 
 (defbase BASE16
   :formatter (comp str/upper-case b16/format)
@@ -85,40 +87,34 @@
 
 ;; ### Base32 (RFC 4648)
 
+
 (defbase base32
   :formatter (b32/formatter false true false)
   :parser (b32/parser false true false))
-
 
 (defbase BASE32
   :formatter (b32/formatter false false false)
   :parser (b32/parser false false false))
 
-
 (defbase base32pad
   :formatter (b32/formatter false true true)
   :parser (b32/parser false true true))
-
 
 (defbase BASE32PAD
   :formatter (b32/formatter false false true)
   :parser (b32/parser false false true))
 
-
 (defbase base32hex
   :formatter (b32/formatter true true false)
   :parser (b32/parser true true false))
-
 
 (defbase BASE32HEX
   :formatter (b32/formatter true false false)
   :parser (b32/parser true false false))
 
-
 (defbase base32hexpad
   :formatter (b32/formatter true true true)
   :parser (b32/parser true true true))
-
 
 (defbase BASE32HEXPAD
   :formatter (b32/formatter true false true)
@@ -127,6 +123,7 @@
 
 ;; ### Base58
 
+
 (defbase base58btc
   :formatter b58/format-btc
   :parser b58/parse-btc)
@@ -134,20 +131,18 @@
 
 ;; ### Base64 (RFC 4648)
 
+
 (defbase base64
   :formatter (b64/formatter false false)
   :parser b64/parse)
-
 
 (defbase base64pad
   :formatter (b64/formatter false true)
   :parser b64/parse)
 
-
 (defbase base64url
   :formatter (b64/formatter true false)
   :parser b64/parse)
-
 
 (defbase base64urlpad
   :formatter (b64/formatter true true)
@@ -156,6 +151,7 @@
 
 
 ;; ## Lookup Functions
+
 
 (defn- install-base
   "Expands a base definition map into one or more definitions and adds them to
@@ -182,7 +178,6 @@
                       {:params params})))
     (assoc base-map base-key (assoc params :prefix prefix))))
 
-
 (def bases
   "Map of base keys to definition maps."
   (reduce install-base
@@ -205,7 +200,6 @@
            base64url
            base64urlpad]))
 
-
 (def ^:private prefix->base
   "Cached map of prefix characters to base keys."
   (into {} (map (juxt (comp :prefix val) key)) bases))
@@ -213,6 +207,7 @@
 
 
 ;; ## Encoding
+
 
 (defn format*
   "Formats binary data into a string with the given base. Returns the formatted
@@ -230,7 +225,6 @@
                       {:base base-key})))
     (formatter data)))
 
-
 (defn format
   "Formats binary data into a string with the given base. Returns the formatted
   string, prefixed with the base constant."
@@ -243,6 +237,7 @@
 
 ;; ## Decoding
 
+
 (defn- get-prefix
   "Get the multibase prefix character from the given string. Throws an
   exception if the string is too short."
@@ -252,7 +247,6 @@
                          " is too short to be multibase-formatted data")
                     {:data string})))
   (str (first string)))
-
 
 (defn parse*
   "Parse a non-prefixed string into binary data using the given base. Returns
@@ -267,7 +261,6 @@
                       {:base base-key})))
     (parser string)))
 
-
 (defn parse
   "Parses a multibase-prefixed string into binary data. Returns an array with
   the parsed bytes, or throws an error if there is no known base."
@@ -281,7 +274,6 @@
                       {:data string
                        :prefix prefix})))
     (parse* base-key (subs string 1))))
-
 
 (defn inspect
   "Inspect a string and return a map of information including the prefix

@@ -47,7 +47,6 @@
    :dns6               {:code 0x37   :codec codec/utf8-codec}
    :dnsaddr            {:code 0x38   :codec codec/utf8-codec}})
 
-
 (def protocol->code
   (into {} (map (juxt key (comp :code val)) protocol->attrs)))
 
@@ -71,7 +70,6 @@
   ([src offset]
    (copy-slice src offset (- (alength ^bytes src) offset))))
 
-
 (defn- decode-value
   "decode value using protocol `codec` in `data` starting at `offset`"
   [codec ^bytes data offset]
@@ -83,7 +81,6 @@
           value-bytes (copy-slice data (+ offset num-read) value-len)]
       [(codec/bytes->str codec value-bytes) (+ num-read value-len)])))
 
-
 (defn- protocol-value-seq
   "lazy sequence of `[protocol-key value]`, where
   `value` is a string representation of the address protocol
@@ -92,15 +89,14 @@
    (protocol-value-seq data 0))
   ([^bytes data offset]
    (when (< offset (alength data))
-       (lazy-seq
-        (let [[code code-len] (varint/read-bytes data offset)
-              protocol-key (get code->protocol code)
-              {:keys [codec]} (ensure-protocol-attrs protocol-key)
-              val-start (+ offset code-len)
-              [value num-read] (decode-value codec data val-start)]
-          (cons [protocol-key value]
-                (protocol-value-seq data (+ offset code-len num-read))))))))
-
+     (lazy-seq
+      (let [[code code-len] (varint/read-bytes data offset)
+            protocol-key (get code->protocol code)
+            {:keys [codec]} (ensure-protocol-attrs protocol-key)
+            val-start (+ offset code-len)
+            [value num-read] (decode-value codec data val-start)]
+        (cons [protocol-key value]
+              (protocol-value-seq data (+ offset code-len num-read))))))))
 
 (defn- concat-arrs [& arrs]
   (let [total-len (reduce + (map alength arrs))
@@ -132,7 +128,7 @@
     (concat-arrs code-bytes val-len-bytes val-bytes)))
 
 (deftype Address
-  [^bytes _data _meta ^:unsynchronized-mutable _hash]
+         [^bytes _data _meta ^:unsynchronized-mutable _hash]
 
   #?(:clj Seqable :cljs ISeqable)
   (#?(:clj seq :cljs -seq) [this] (protocol-value-seq _data))
@@ -161,7 +157,6 @@
     [this]
     _meta)
 
-
   #?(:clj IObj :cljs IWithMeta)
   (#?(:clj withMeta :cljs -with-meta)
     [this new-meta]
@@ -178,12 +173,11 @@
 
   Object
   (toString [this]
-     (->> this
-          (mapcat (fn [[k v]] [(name k) v]))
-          (remove nil?)
-          (str/join "/")
-          (str "/"))))
-
+    (->> this
+         (mapcat (fn [[k v]] [(name k) v]))
+         (remove nil?)
+         (str/join "/")
+         (str "/"))))
 
 (defn- parse-entries
   [address-str]
@@ -198,7 +192,6 @@
             (let [new-entry [protocol-key (str (second parts))]]
               (recur (drop 2 parts) (conj pairs new-entry)))))
         pairs))))
-
 
 (defn parse
   "parse a human-readable multiaddr string; the data that backs
@@ -225,7 +218,6 @@
   "returns byte array representation of address"
   ^bytes [^Address addr]
   (b/copy (.-_data addr)))
-
 
 (defn decode
   "Decode address from byte array"

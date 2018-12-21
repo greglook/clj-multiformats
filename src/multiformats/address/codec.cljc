@@ -6,7 +6,7 @@
    #?@(:cljs [[goog.crypt :as crypt]
               [goog.net.IpAddress :as ip-address]]))
   #?(:clj
-     (:import [java.net InetAddress])) )
+     (:import [java.net InetAddress])))
 
 (defprotocol Codec
   "Convert multiaddr protocol values between 
@@ -45,7 +45,6 @@
   #?(:clj  (Integer/toString ^long n ^long radix)
      :cljs (.toString ^number n ^int radix)))
 
-
 (defn- write-uint-bytes! [n ^bytes data offset num-bytes]
   (when (neg? n)
     (throw (ex-info "Number must be non-negative" {:n n})))
@@ -55,7 +54,7 @@
       (b/set-byte data (+ offset idx) b))))
 
 (defrecord IPAddressCodec
-  [version radix separator num-components bytes-per-component]
+           [version radix separator num-components bytes-per-component]
 
   Codec
   (str->bytes [this addr]
@@ -103,7 +102,6 @@
                        (int->str radix))))))
   (fixed-byte-length [this]
     (* num-components bytes-per-component)))
-
 
 (def ip4-codec
   (->IPAddressCodec 4 10 "." 4 1))

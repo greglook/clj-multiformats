@@ -1,13 +1,12 @@
 (ns multiformats.base.b32
   "Base32 implementation from RFC 4648."
   (:require
-    [alphabase.bytes :as b]
-    [clojure.string :as str])
+   [alphabase.bytes :as b]
+   [clojure.string :as str])
   #?(:clj
      (:import
-       (org.apache.commons.codec.binary
-         Base32))))
-
+      (org.apache.commons.codec.binary
+       Base32))))
 
 (defn formatter
   "Constructs a function which formats byte data as a base32-encoded string."
@@ -66,7 +65,6 @@
                              2 "===="
                              1 "======"
                              nil))))))))))
-
 
 (defn parser
   "Constructs a function which parses a base32-encoded string into bytes."

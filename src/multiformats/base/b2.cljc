@@ -2,13 +2,12 @@
   "Binary base encoding implementation."
   (:refer-clojure :exclude [format])
   (:require
-    [alphabase.bytes :as b]
-    [clojure.string :as str])
+   [alphabase.bytes :as b]
+   [clojure.string :as str])
   #?(:clj
      (:import
-       (org.apache.commons.codec.binary
-         BinaryCodec))))
-
+      (org.apache.commons.codec.binary
+       BinaryCodec))))
 
 #?(:clj
    (defn- reverse-octets
@@ -20,36 +19,33 @@
          (recur (cons (subs string i (+ i 8)) octets) (+ i 8))
          (apply str octets)))))
 
-
 #?(:cljs
    (defn- byte->octet
      "Convert a byte value to a binary octet string."
      [x]
      (str
-       (if (zero? (bit-and x 0x80)) "0" "1")
-       (if (zero? (bit-and x 0x40)) "0" "1")
-       (if (zero? (bit-and x 0x20)) "0" "1")
-       (if (zero? (bit-and x 0x10)) "0" "1")
-       (if (zero? (bit-and x 0x08)) "0" "1")
-       (if (zero? (bit-and x 0x04)) "0" "1")
-       (if (zero? (bit-and x 0x02)) "0" "1")
-       (if (zero? (bit-and x 0x01)) "0" "1"))))
-
+      (if (zero? (bit-and x 0x80)) "0" "1")
+      (if (zero? (bit-and x 0x40)) "0" "1")
+      (if (zero? (bit-and x 0x20)) "0" "1")
+      (if (zero? (bit-and x 0x10)) "0" "1")
+      (if (zero? (bit-and x 0x08)) "0" "1")
+      (if (zero? (bit-and x 0x04)) "0" "1")
+      (if (zero? (bit-and x 0x02)) "0" "1")
+      (if (zero? (bit-and x 0x01)) "0" "1"))))
 
 #?(:cljs
    (defn- octet->byte
      "Convert a binary octet string to a byte value."
      [octet]
      (bit-or
-       (if (= "1" (subs octet 0 1)) 0x80 0x00)
-       (if (= "1" (subs octet 1 2)) 0x40 0x00)
-       (if (= "1" (subs octet 2 3)) 0x20 0x00)
-       (if (= "1" (subs octet 3 4)) 0x10 0x00)
-       (if (= "1" (subs octet 4 5)) 0x08 0x00)
-       (if (= "1" (subs octet 5 6)) 0x04 0x00)
-       (if (= "1" (subs octet 6 7)) 0x02 0x00)
-       (if (= "1" (subs octet 7 8)) 0x01 0x00))))
-
+      (if (= "1" (subs octet 0 1)) 0x80 0x00)
+      (if (= "1" (subs octet 1 2)) 0x40 0x00)
+      (if (= "1" (subs octet 2 3)) 0x20 0x00)
+      (if (= "1" (subs octet 3 4)) 0x10 0x00)
+      (if (= "1" (subs octet 4 5)) 0x08 0x00)
+      (if (= "1" (subs octet 5 6)) 0x04 0x00)
+      (if (= "1" (subs octet 6 7)) 0x02 0x00)
+      (if (= "1" (subs octet 7 8)) 0x01 0x00))))
 
 (defn format
   "Format some byte data into a binary-encoded string."
@@ -58,11 +54,10 @@
      (reverse-octets (BinaryCodec/toAsciiString data))
      :cljs
      (reduce
-       (fn build-str
-         [string i]
-         (str string (byte->octet (b/get-byte data i))))
-       "" (range (alength data)))))
-
+      (fn build-str
+        [string i]
+        (str string (byte->octet (b/get-byte data i))))
+      "" (range (alength data)))))
 
 (defn parse
   "Parse a string of binary-encoded bytes."

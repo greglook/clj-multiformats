@@ -9,12 +9,6 @@
      (:import
       clojure.lang.ExceptionInfo)))
 
-(defn ->bytes [bs]
-  (let [dst (b/byte-array (count bs))]
-    (doseq [[idx b] (map-indexed vector bs)]
-      (b/set-byte dst idx b))
-    dst))
-
 (defn roundtrip [codec x]
   (->> x
        (codec/str->bytes codec)
@@ -31,7 +25,7 @@
 
   (testing "address to bytes"
     (are [ip-codec addr-bytes-seq expected]
-        (let [addr-bytes (->bytes addr-bytes-seq)]
+        (let [addr-bytes (b/init-bytes addr-bytes-seq)]
           (is (= expected (codec/bytes->str ip-codec addr-bytes))))
       codec/ip4-codec [127 0 0 1] "127.0.0.1"
       codec/ip4-codec [180 10 1 5] "180.10.1.5"
@@ -72,7 +66,7 @@
   (testing "parsing bytes validation"
     (are [codec bad-bytes]
         (thrown? #?(:clj ExceptionInfo, :cljs js/Error)
-                 (codec/bytes->str codec (->bytes bad-bytes)))
+                 (codec/bytes->str codec (b/init-bytes bad-bytes)))
       codec/ushort-codec [0 0 0]
       codec/ushort-codec [0])))
 

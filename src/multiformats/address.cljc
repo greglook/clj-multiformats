@@ -92,7 +92,7 @@
      (lazy-seq
       (let [[code code-len] (varint/read-bytes data offset)
             protocol-key (get code->protocol code)
-            {:keys [codec]} (ensure-protocol-attrs protocol-key)
+            codec (:codec (ensure-protocol-attrs protocol-key))
             val-start (+ offset code-len)
             [value num-read] (decode-value codec data val-start)]
         (cons [protocol-key value]
@@ -119,13 +119,16 @@
         value (when (coll? entry) (second entry))
         {:keys [code, codec]} (ensure-protocol-attrs protocol-key)
         code-bytes (varint/encode code)
-        val-bytes (if (nil? value)
-                    (b/byte-array 0)
+        fixed-len (codec/fixed-byte-length codec)
+        ;; no value bytes needed for no-value protocols (fixed-length at 0)
+        val-bytes (when (or (not fixed-len) (pos? fixed-len))
                     (codec/str->bytes codec value))
-        val-len-bytes (if (codec/fixed-byte-length codec)
-                        (b/byte-array 0)
+        ;; only have length bytes for variable length protocols
+        val-len-bytes (when-not fixed-len
                         (varint/encode (alength ^bytes val-bytes)))]
-    (concat-arrs code-bytes val-len-bytes val-bytes)))
+    (->> [code-bytes val-len-bytes val-bytes]
+         (remove nil?)
+         (apply concat-arrs))))
 
 (deftype Address
          [^bytes _data _meta ^:unsynchronized-mutable _hash]
@@ -141,7 +144,7 @@
 
   #?(:cljs IEmptyableCollection)
   (#?(:clj empty :cljs -empty)
-    [this] (Address. (b/byte-array 0) nil 0))
+    [this] (Address. (b/byte-array 0) _meta 0))
 
   #?(:cljs IEquiv)
   (#?(:clj equiv :cljs -equiv) [this other]
@@ -181,17 +184,21 @@
 
 (defn- parse-entries
   [address-str]
-  (let [parts (->> #"/" (str/split address-str) (remove str/blank?))]
-    (loop [parts parts pairs []]
-      (if-let [protocol-key (-> parts first keyword)]
-        (let [{:keys [code, codec] :as attrs}
-              (ensure-protocol-attrs protocol-key)
-              fixed-len (codec/fixed-byte-length codec)]
-          (if (and fixed-len (zero? fixed-len))
-            (recur (next parts) (conj pairs [protocol-key nil]))
-            (let [new-entry [protocol-key (str (second parts))]]
-              (recur (drop 2 parts) (conj pairs new-entry)))))
-        pairs))))
+  (loop [parts (->> #"/" (str/split address-str) (remove str/blank?))
+         pairs []]
+    (if-let [protocol-key (-> parts first keyword)]
+      (let [{:keys [code, codec] :as attrs}
+            (ensure-protocol-attrs protocol-key)
+            fixed-len (codec/fixed-byte-length codec)]
+        (if (and fixed-len (zero? fixed-len))
+          (recur (next parts) (conj pairs [protocol-key nil]))
+          (let [value (second parts)]
+            (when-not value
+              (throw (ex-info (str "Missing value for  " (name protocol-key))
+                              {:protocol protocol-key :address address-str})))
+            (recur (nnext parts)
+                   (conj pairs [protocol-key (str value)])))))
+      pairs)))
 
 (defn parse
   "parse a human-readable multiaddr string; the data that backs
@@ -212,7 +219,8 @@
   (str (create [[:ip4 \"127.0.0.1\"][:tcp \"80\"]]))
   >> \"/ip4/127.0.0.1/tcp/80\" "
   [& entries]
-  (into (->Address (b/byte-array 0) nil 0) entries))
+  (let [addr-bytes (apply concat-arrs (map entry-bytes entries))]
+    (->Address addr-bytes nil 0)))
 
 (defn encode
   "returns byte array representation of address"

@@ -99,12 +99,13 @@
               (protocol-value-seq data (+ offset code-len num-read))))))))
 
 (defn- concat-arrs [& arrs]
-  (let [total-len (reduce + (map alength arrs))
+  (let [arrs (remove nil? arrs)
+        total-len (reduce + (map alength arrs))
         dst (b/byte-array total-len)]
     (loop [arrs arrs offset 0]
       (when-let [^bytes src (first arrs)]
         (b/copy src 0 dst offset (alength src))
-        (recur (rest arrs) (+ offset (alength src)))))
+        (recur (next arrs) (+ offset (alength src)))))
     dst))
 
 (defn- entry-bytes
@@ -126,9 +127,7 @@
         ;; only have length bytes for variable length protocols
         val-len-bytes (when-not fixed-len
                         (varint/encode (alength ^bytes val-bytes)))]
-    (->> [code-bytes val-len-bytes val-bytes]
-         (remove nil?)
-         (apply concat-arrs))))
+    (concat-arrs code-bytes val-len-bytes val-bytes)))
 
 (deftype Address
   [^bytes _data _meta ^:unsynchronized-mutable _hash]

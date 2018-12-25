@@ -1,12 +1,13 @@
 (ns multiformats.base.b64
   "Base64 implementation from RFC 4648."
   (:require
-   [clojure.string :as str]
-   #?(:cljs [goog.crypt.base64 :as gcb64]))
+    [clojure.string :as str]
+    #?(:cljs [goog.crypt.base64 :as gcb64]))
   #?(:clj
      (:import
-      (org.apache.commons.codec.binary
-       Base64))))
+       (org.apache.commons.codec.binary
+         Base64))))
+
 
 (defn formatter
   "Construct a new function to format bytes as base64 with normal or URL
@@ -34,6 +35,7 @@
          (if padding?
            (str/replace encoded "." "=")
            (str/replace encoded #"[.=]+$" ""))))))
+
 
 (defn parse
   "Parse a string of base64-encoded bytes."

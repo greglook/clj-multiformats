@@ -7,11 +7,10 @@
 
   https://github.com/multiformats/unsigned-varint"
   (:require
-   [alphabase.bytes :as b]))
+    [alphabase.bytes :as b]))
 
 
 ;; ## Encoding
-
 
 (defn write-bytes
   "Write a value as a varint to a byte array at the given offset. Returns the
@@ -25,14 +24,14 @@
     ; Check for index out of bounds.
     (when (<= (alength buffer) (+ offset i))
       (throw (ex-info
-              (str "Varint write index out of bounds at position "
-                   (+ offset i) " (" i " bytes from offset " offset ")")
-              {:offset (+ offset i)})))
+               (str "Varint write index out of bounds at position "
+                    (+ offset i) " (" i " bytes from offset " offset ")")
+               {:offset (+ offset i)})))
     ; Check for overflow.
     (when (<= 9 i)
       (throw (ex-info
-              "Varints larger than nine bytes are not currently supported"
-              {:value value})))
+               "Varints larger than nine bytes are not currently supported"
+               {:value value})))
     (if (<= 0x80 v)
       ; Write continuation byte and recur.
       (let [b (bit-or (bit-and v 0x7F) 0x80)]
@@ -43,6 +42,7 @@
       (let [b (bit-and v 0x7F)]
         (b/set-byte buffer (+ offset i) b)
         (inc i)))))
+
 
 (defn encode
   "Encode a value as a sequence of varint bytes. Returns the encoded byte
@@ -59,7 +59,6 @@
 
 ;; ## Decoding
 
-
 (defn read-bytes
   "Read bytes from the byte array at the given offset. Returns a tuple with the
   decoded varint and the number of bytes read."
@@ -70,15 +69,15 @@
     ; Check for index out of bounds.
     (when (<= (alength data) i)
       (throw (ex-info
-              (str "Ran out of bytes to decode at position " i
-                   " (" n " bytes from offset " offset ")")
-              {:offset offset
-               :length (alength data)})))
+               (str "Ran out of bytes to decode at position " i
+                    " (" n " bytes from offset " offset ")")
+               {:offset offset
+                :length (alength data)})))
     ; Check for overflow of soft limit.
     (when (<= 9 n)
       (throw (ex-info
-              "Varints larger than nine bytes are not currently supported"
-              {:offset offset})))
+               "Varints larger than nine bytes are not currently supported"
+               {:offset offset})))
     ; Decode next byte.
     (let [b (b/get-byte data i)]
       (if (< b 0x80)
@@ -89,6 +88,7 @@
         (recur (inc i)
                (inc n)
                (bit-or (bit-shift-left (bit-and b 0x7F) (* 7 n)) v))))))
+
 
 (defn decode
   "Decode a byte array as a varint value. Returns the decoded value.

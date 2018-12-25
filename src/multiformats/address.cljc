@@ -131,7 +131,7 @@
          (apply concat-arrs))))
 
 (deftype Address
-         [^bytes _data _meta ^:unsynchronized-mutable _hash]
+  [^bytes _data _meta ^:unsynchronized-mutable _hash]
 
   #?(:clj Seqable :cljs ISeqable)
   (#?(:clj seq :cljs -seq) [this] (protocol-value-seq _data))

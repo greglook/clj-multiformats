@@ -50,7 +50,7 @@
 (deftest uint-codec-test
   (testing "round trip on numbers"
     (are [codec n]
-      (= n (roundtrip codec/utf8-codec n))
+      (= n (roundtrip codec n))
       codec/ushort-codec "80"
       codec/ushort-codec "128"
       (codec/->UnsignedNumTranscoder 10 1) "100"))

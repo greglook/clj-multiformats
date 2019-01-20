@@ -20,7 +20,8 @@
     :exclusions [org.clojure/clojure
                  org.clojure/clojurescript]]
    [lein-cloverage "1.0.13"
-    :exclusions [org.clojure/clojure]]
+    :exclusions [org.clojure/clojure
+                 venantius/ultra]]
    ; Conflict resolution ಠ_ಠ
    [meta-merge "1.0.0"]]
 
@@ -46,6 +47,10 @@
                         :output-to "target/cljs/tests.js"
                         :main multiformats.test-runner}}]}
 
+  :whidbey
+  {:tag-types {'multiformats.hash.Multihash {'multi/hash str}
+               'multiformats.cid.ContentID {'multi/cid str}}}
+
   :profiles
   {:dev
    {:dependencies
@@ -62,6 +67,4 @@
     [[doo "0.1.11"]]}
 
    :repl
-   {:source-paths ["dev"]
-    :whidbey
-    {:tag-types {'multiformats.hash.Multihash {'multi/hash 'str}}}}})
+   {:source-paths ["dev"]}})

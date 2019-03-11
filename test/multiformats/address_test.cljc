@@ -9,6 +9,7 @@
      (:import
       clojure.lang.ExceptionInfo)))
 
+
 (deftest parse-test
   (are [addr-str coll]
     (= (seq (address/parse addr-str)) coll)
@@ -18,6 +19,7 @@
     "/ip6/::1/tcp/3217" [[:ip6 "0:0:0:0:0:0:0:1"] [:tcp "3217"]]
     "/ip6/::1/tcp/3217/ws" [[:ip6 "0:0:0:0:0:0:0:1"] [:tcp "3217"] [:ws nil]]))
 
+
 (deftest conj-test
   (are [base-addr entries expected-str]
     (= expected-str (str (into base-addr entries)))
@@ -25,10 +27,13 @@
     (address/create) [[:ip4 "127.0.0.1"] [:tcp "80"]] "/ip4/127.0.0.1/tcp/80"
     (address/parse "/ip4/127.0.0.1/udp/9090") [:quic] "/ip4/127.0.0.1/udp/9090/quic"))
 
-(defn roundtrip [addr]
+
+(defn roundtrip
+  [addr]
   (-> addr
       address/encode
       address/decode))
+
 
 (deftest encode-decode-roundtrip
   (are [addr]

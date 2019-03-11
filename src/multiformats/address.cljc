@@ -24,6 +24,7 @@
        IMeta
        IPersistentCollection))))
 
+
 (def protocol->attrs
   "Map from address protocols to attributes used in encoding/decoding
 
@@ -47,11 +48,14 @@
    :dns6               {:code 0x37   :codec codec/utf8-codec}
    :dnsaddr            {:code 0x38   :codec codec/utf8-codec}})
 
+
 (def protocol->code
   (into {} (map (juxt key (comp :code val)) protocol->attrs)))
 
+
 (def code->protocol
   (into {} (map (juxt val key) protocol->code)))
+
 
 (defn- ensure-protocol-attrs
   "look up protocol attributes, throws if unknown"
@@ -62,6 +66,7 @@
                       {:protocol protocol-key})))
     protocol-attrs))
 
+
 (defn- copy-slice
   ([src offset len]
    (let [dst (b/byte-array len)]
@@ -69,6 +74,7 @@
      dst))
   ([src offset]
    (copy-slice src offset (- (alength ^bytes src) offset))))
+
 
 (defn- decode-value
   "decode value using protocol `codec` in `data` starting at `offset`"
@@ -80,6 +86,7 @@
     (let [[value-len num-read] (varint/read-bytes data offset)
           value-bytes (copy-slice data (+ offset num-read) value-len)]
       [(codec/bytes->str codec value-bytes) (+ num-read value-len)])))
+
 
 (defn- protocol-value-seq
   "lazy sequence of `[protocol-key value]`, where
@@ -98,7 +105,9 @@
         (cons [protocol-key value]
               (protocol-value-seq data (+ offset code-len num-read))))))))
 
-(defn- concat-arrs [& arrs]
+
+(defn- concat-arrs
+  [& arrs]
   (let [arrs (remove nil? arrs)
         total-len (reduce + (map alength arrs))
         dst (b/byte-array total-len)]
@@ -107,6 +116,7 @@
         (b/copy src 0 dst offset (alength src))
         (recur (next arrs) (+ offset (alength src)))))
     dst))
+
 
 (defn- entry-bytes
   "build byte array representation for protocol/value pair,
@@ -128,6 +138,7 @@
         val-len-bytes (when-not fixed-len
                         (varint/encode (alength ^bytes val-bytes)))]
     (concat-arrs code-bytes val-len-bytes val-bytes)))
+
 
 (deftype Address
   [^bytes _data _meta ^:unsynchronized-mutable _hash]
@@ -181,6 +192,7 @@
          (str/join "/")
          (str "/"))))
 
+
 (defn- parse-entries
   [address-str]
   (loop [parts (->> #"/" (str/split address-str) (remove str/blank?))
@@ -199,6 +211,7 @@
                    (conj pairs [protocol-key (str value)])))))
       pairs)))
 
+
 (defn parse
   "parse a human-readable multiaddr string; the data that backs
    the result is a packed representation.
@@ -212,6 +225,7 @@
         pair-bytes (map entry-bytes pairs)]
     (->Address (apply concat-arrs pair-bytes) nil 0)))
 
+
 (defn create
   "create address from entries (possibly empty) you can build on
 
@@ -221,12 +235,16 @@
   (let [addr-bytes (apply concat-arrs (map entry-bytes entries))]
     (->Address addr-bytes nil 0)))
 
+
 (defn encode
   "returns byte array representation of address"
-  ^bytes [^Address addr]
+  ^bytes
+  [^Address addr]
   (b/copy (.-_data addr)))
+
 
 (defn decode
   "Decode address from byte array"
-  ^Address [^bytes data]
+  ^Address
+  [^bytes data]
   (Address. data nil 0))

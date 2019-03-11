@@ -282,9 +282,6 @@
   (b/copy (inner-bytes mhash) buffer offset))
 
 
-; TODO: read/write byte streams?
-
-
 (defn encode
   "Encode a multihash into a binary representation. Returns the byte array."
   ^bytes
@@ -302,6 +299,12 @@
   "Format a multihash as a hex string."
   [mhash]
   (hex/format (inner-bytes mhash)))
+
+
+(defn parse
+  "Parse a hex string into a multihash."
+  [string]
+  (decode (hex/parse string)))
 
 
 

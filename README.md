@@ -18,10 +18,8 @@ This library includes support for:
 - Portable [cryptographic hashes](https://github.com/multiformats/multihash).
 - Concise packed [codec identifiers](https://github.com/multiformats/multicodec).
 - IPLD [CID](https://github.com/ipld/cid) content identifiers.
-- **TODO:** multiaddr
+- Composable [multiaddress](https://github.com/multiformats/multiaddr) paths.
 - **TODO:** multistream
-
-**WARNING:** This is still a work in progress.
 
 
 ## Installation
@@ -210,6 +208,29 @@ true
  :code 81,
  :codec :cbor,
  :hash #<multiformats.hash.Multihash@47bd421b hash:sha1:2aae6c35c94fcfb415dbe95f408b9ce91ee846ed>}
+```
+
+### Multiaddress
+
+[Multiaddr](https://github.com/multiformats/multiaddr) is a multiformat which
+specifies network addresses in a protocol-agnostic, composable way.
+
+```clojure
+=> (require '[multiformats.address :as addr])
+
+; There's no place like it...
+=> (addr/create [:ip4 "127.0.0.1"])
+#<multiformats.address.Address@6240b7d0 /ip4/127.0.0.1>
+
+=> (str *1)
+"/ip4/127.0.0.1"
+
+; Addresses can be treated as sequences:
+=> (conj *2 [:tcp "80"])
+#<multiformats.address.Address@543f04b8 /ip4/127.0.0.1/tcp/80>
+
+=> (seq *1)
+([:ip4 "127.0.0.1"] [:tcp "80"])
 ```
 
 

@@ -1,4 +1,4 @@
-(defproject mvxcvi/multiformats "0.1.1"
+(defproject mvxcvi/multiformats "0.2.0"
   :description "Native Clojure implementation of the multiformat standards."
   :url "https://github.com/multiformats/clj-multiformats"
   :license {:name "Public Domain"
@@ -11,7 +11,7 @@
   {"clj:test" ["do" ["check"] ["test"]]
    "cljs:check" ["with-profile" "+doo" "cljsbuild" "once"]
    "cljs:repl" ["run" "-m" "clojure.main" "dev/cljs_repl.clj"]
-   "cljs:test" ["doo" "rhino" "test" "once"]}
+   "cljs:test" ["doo" "phantom" "test" "once"]}
 
   :plugins
   [[lein-cljsbuild "1.1.7"

@@ -9,6 +9,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ...
 
+## [0.2.0] - 2019-03-10
+
+### Added
+- Added hex-parsing utility method for multihashes.
+- Implemented [multiaddr](https://github.com/multiformats/multiaddr) support.
+  [#1](https://github.com/greglook/clj-multiformats/pull/1)
+
 ## [0.1.1] - 2019-01-20
 
 ### Changed
@@ -18,5 +25,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 Initial project release.
 
-[Unreleased]: https://github.com/greglook/alphabase/compare/0.1.1...HEAD
-[0.1.1]: https://github.com/greglook/alphabase/compare/0.1.0...0.1.1
+[Unreleased]: https://github.com/greglook/clj-multiformats/compare/0.2.0...HEAD
+[0.2.0]: https://github.com/greglook/clj-multiformats/compare/0.1.1...0.2.0
+[0.1.1]: https://github.com/greglook/clj-multiformats/compare/0.1.0...0.1.1

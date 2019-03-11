@@ -81,7 +81,7 @@
   (merge
     miscellaneous-codes
     multiformat-codes
-    maddr/codes
+    maddr/protocol->code
     mbase/codes
     mhash/codes
     serialization-codes

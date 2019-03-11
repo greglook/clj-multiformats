@@ -98,7 +98,9 @@
       (is (= bits (:bits mhash)))
       (is (= digest (:digest mhash)))
       (is (= hex (mhash/hex mhash))
-          "Encoded multihashes match expected hex"))))
+          "Encoded multihashes match expected hex")
+      (is (= mhash (mhash/parse hex))
+          "Hex parses back to multihash"))))
 
 
 (deftest hashing-constructors

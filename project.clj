@@ -1,4 +1,4 @@
-(defproject mvxcvi/multiformats "0.1.2-SNAPSHOT"
+(defproject mvxcvi/multiformats "0.2.1-SNAPSHOT"
   :description "Native Clojure implementation of the multiformat standards."
   :url "https://github.com/multiformats/clj-multiformats"
   :license {:name "Public Domain"

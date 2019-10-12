@@ -19,25 +19,17 @@
    [lein-doo "0.1.11"
     :exclusions [org.clojure/clojure
                  org.clojure/clojurescript]]
-   [lein-cloverage "1.0.13"
+   [lein-cloverage "1.1.2"
     :exclusions [org.clojure/clojure
-                 venantius/ultra]]
-   ; Conflict resolution ಠ_ಠ
-   [meta-merge "1.0.0"]]
+                 venantius/ultra]]]
 
   :dependencies
-  [[mvxcvi/alphabase "2.0.3"]
-   [commons-codec "1.11"]]
+  [[mvxcvi/alphabase "2.1.0"]
+   [commons-codec "1.13"]]
 
   :hiera
   {:cluster-depth 2
-   ;:vertical false
    :show-external false}
-
-  :codox
-  {:metadata {:doc/format :markdown}
-   :source-uri "https://github.com/greglook/clj-multiformats/blob/master/{filepath}#L{line}"
-   :output-path "target/doc/api"}
 
   :cljsbuild
   {:builds [{:id "test"
@@ -54,17 +46,17 @@
   :profiles
   {:dev
    {:dependencies
-    [[org.clojure/clojure "1.10.0"]
-     [org.clojure/clojurescript "1.10.439"]
-     [org.clojure/tools.namespace "0.2.11"]
-     ; Conflict resolution ಠ_ಠ
+    [[org.clojure/clojure "1.10.1"]
+     [org.clojure/clojurescript "1.10.520"]
+     [org.clojure/tools.namespace "0.3.1"]
+     ;; Conflict resolution
      [com.google.code.findbugs/jsr305 "3.0.2"]
-     [com.google.errorprone/error_prone_annotations "2.3.2"]
+     [com.google.errorprone/error_prone_annotations "2.1.3"]
      [org.clojure/tools.reader "1.3.2"]]}
+
+   :repl
+   {:source-paths ["dev"]}
 
    :doo
    {:dependencies
-    [[doo "0.1.11"]]}
-
-   :repl
-   {:source-paths ["dev"]}})
+    [[doo "0.1.11"]]}})

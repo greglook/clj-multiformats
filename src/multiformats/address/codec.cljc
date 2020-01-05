@@ -2,8 +2,8 @@
   "Internal namespace for parsing/formatting multiaddr formats"
   (:require
     [alphabase.bytes :as b]
-    [clojure.string :as str]
-    #?@(:cljs [[goog.crypt :as crypt]
+    #?@(:cljs [[clojure.string :as str]
+               [goog.crypt :as crypt]
                [goog.net.IpAddress :as ip-address]]))
   #?(:clj
      (:import
@@ -48,7 +48,7 @@
 (defn- int->str
   [n radix]
   #?(:clj  (Integer/toString ^long n ^long radix)
-     :cljs (.toString ^number n ^int radix)))
+     :cljs (.toString n ^int radix)))
 
 
 (defn- write-uint-bytes!

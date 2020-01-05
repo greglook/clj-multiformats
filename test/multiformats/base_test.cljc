@@ -4,7 +4,6 @@
   - https://github.com/eth-r/multibase/tree/master/tests"
   (:require
     [alphabase.bytes :as b :refer [bytes=]]
-    [clojure.string :as str]
     #?(:clj [clojure.test :refer [deftest testing is]]
        :cljs [cljs.test :refer-macros [deftest testing is]])
     #?(:cljs [goog.crypt :as crypt])

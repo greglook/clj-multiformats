@@ -23,8 +23,7 @@
        (clojure.lang
          ILookup
          IMeta
-         IObj
-         Keyword)
+         IObj)
        java.io.InputStream
        java.nio.ByteBuffer
        java.security.MessageDigest)))
@@ -267,7 +266,7 @@
   "Read a multihash from a byte array. Returns a tuple containing the multihash
   and the number of bytes read."
   [^bytes data offset]
-  (let [[code csize] (varint/read-bytes data offset)
+  (let [[_ csize] (varint/read-bytes data offset)
         [length lsize] (varint/read-bytes data (+ offset csize))
         total-size (+ csize lsize length)
         buffer (b/byte-array total-size)]

@@ -87,42 +87,42 @@
 
 (defbase base32
   :formatter (b32/formatter false true false)
-  :parser (b32/parser false true false))
+  :parser (b32/parser false))
 
 
 (defbase BASE32
   :formatter (b32/formatter false false false)
-  :parser (b32/parser false false false))
+  :parser (b32/parser false))
 
 
 (defbase base32pad
   :formatter (b32/formatter false true true)
-  :parser (b32/parser false true true))
+  :parser (b32/parser false))
 
 
 (defbase BASE32PAD
   :formatter (b32/formatter false false true)
-  :parser (b32/parser false false true))
+  :parser (b32/parser false))
 
 
 (defbase base32hex
   :formatter (b32/formatter true true false)
-  :parser (b32/parser true true false))
+  :parser (b32/parser true))
 
 
 (defbase BASE32HEX
   :formatter (b32/formatter true false false)
-  :parser (b32/parser true false false))
+  :parser (b32/parser true))
 
 
 (defbase base32hexpad
   :formatter (b32/formatter true true true)
-  :parser (b32/parser true true true))
+  :parser (b32/parser true))
 
 
 (defbase BASE32HEXPAD
   :formatter (b32/formatter true false true)
-  :parser (b32/parser true false true))
+  :parser (b32/parser true))
 
 
 ;; ### Base58

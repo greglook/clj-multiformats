@@ -2,7 +2,7 @@
   "Binary base encoding implementation."
   (:refer-clojure :exclude [format])
   (:require
-    [alphabase.bytes :as b]
+    #?(:cljs [alphabase.bytes :as b])
     [clojure.string :as str])
   #?(:clj
      (:import
@@ -64,18 +64,25 @@
        "" (range (alength data)))))
 
 
+(defn- zero-pad
+  "Pad the given binary string with zeroes so its length is a multiple of 8."
+  [string]
+  (if (zero? (rem (count string) 8))
+    string
+    (str (str/join (repeat (- 8 (rem (count string) 8)) "0"))
+         string)))
+
+
 (defn parse
   "Parse a string of binary-encoded bytes."
   [^String string]
-  (let [string (if (zero? (rem (count string) 8))
-                 string
-                 (str (str/join (repeat (- 8 (rem (count string) 8)) "0"))
-                      string))]
-    #?(:clj
-       (.toByteArray (BinaryCodec.) (reverse-octets string))
-       :cljs
-       (let [buffer (b/byte-array (int (/ (count string) 8)))]
-         (dotimes [i (alength buffer)]
-           (let [octet (subs string (* i 8) (* (inc i) 8))]
-             (b/set-byte buffer i (octet->byte octet))))
-         buffer))))
+  #?(:clj
+     (let [digits (zero-pad string)]
+       (.toByteArray (BinaryCodec.) (reverse-octets digits)))
+     :cljs
+     (let [digits (zero-pad string)
+           buffer (b/byte-array (int (/ (count digits) 8)))]
+       (dotimes [i (alength buffer)]
+         (let [octet (subs digits (* i 8) (* (inc i) 8))]
+           (b/set-byte buffer i (octet->byte octet))))
+       buffer)))

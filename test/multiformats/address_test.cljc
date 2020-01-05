@@ -1,13 +1,9 @@
 (ns multiformats.address-test
   (:require
-    [alphabase.bytes :as b :refer [bytes= byte-seq]]
-    [clojure.string :as str]
-    #?(:clj [clojure.test :refer [deftest testing is are]]
-       :cljs [cljs.test :refer-macros [deftest testing is are]])
-    [multiformats.address :as address])
-  #?(:clj
-     (:import
-       clojure.lang.ExceptionInfo)))
+    [alphabase.bytes :as b]
+    #?(:clj [clojure.test :refer [deftest are]]
+       :cljs [cljs.test :refer-macros [deftest are]])
+    [multiformats.address :as address]))
 
 
 (deftest parse-test

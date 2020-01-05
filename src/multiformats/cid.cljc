@@ -18,9 +18,7 @@
        (clojure.lang
          ILookup
          IMeta
-         IObj
-         Keyword)
-       multiformats.hash.Multihash)))
+         IObj))))
 
 
 ;; ## Coding Functions
@@ -39,7 +37,7 @@
   parameters. Resolves the codec to a keyword if possible."
   [^bytes data]
   (let [[version codec offset] (read-header data)
-        [mhash hsize] (mhash/read-bytes data offset)]
+        [mhash _] (mhash/read-bytes data offset)]
     {:version version
      :codec (mcodec/resolve-key codec)
      :hash mhash}))
@@ -204,8 +202,8 @@
       (throw (ex-info
                (str "Unable to decode CID version " (pr-str version))
                {:version version})))
-    (let [[code clength] (varint/read-bytes data (+ offset vlength))
-          [mhash hlength] (mhash/read-bytes data (+ offset vlength clength))
+    (let [[_ clength] (varint/read-bytes data (+ offset vlength))
+          [_ hlength] (mhash/read-bytes data (+ offset vlength clength))
           length (+ vlength clength hlength)
           buffer (b/byte-array length)]
       (b/copy data offset buffer 0 length)
@@ -217,7 +215,7 @@
   Returns the number of bytes written."
   [^ContentID cid ^bytes buffer offset]
   (let [encoded (inner-bytes cid)
-        [version code hsize] (read-header encoded)]
+        [version _ hsize] (read-header encoded)]
     (if (zero? version)
       (b/copy encoded hsize buffer offset (- (alength encoded) hsize))
       (b/copy encoded buffer offset))))

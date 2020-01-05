@@ -1,7 +1,7 @@
 (ns multiformats.base.b32
   "Base32 implementation from RFC 4648."
   (:require
-    [alphabase.bytes :as b]
+    #?(:cljs [alphabase.bytes :as b])
     [clojure.string :as str])
   #?(:clj
      (:import
@@ -34,8 +34,8 @@
                (let [input-bytes (min 5 (- (alength data) offset))
                      output-chars (cond-> (int (/ (* input-bytes 8) 5))
                                     (pos? (rem (* input-bytes 8) 5)) (inc))
-                     [b0 b1 b2 b3 b4 b5] (map #(or (b/get-byte data (+ offset %)) 0)
-                                              (range 0 input-bytes))
+                     [b0 b1 b2 b3 b4] (map #(or (b/get-byte data (+ offset %)) 0)
+                                           (range 0 input-bytes))
                      bits [; top 5 bits of byte 0
                            (bit-and (bit-shift-right b0 3) 0x1F)
                            ; bottom 3 bits of byte 0 + top 2 bits of byte 1
@@ -70,7 +70,7 @@
 
 (defn parser
   "Constructs a function which parses a base32-encoded string into bytes."
-  [hex? lower? pad?]
+  [hex?]
   #?(:clj
      (let [codec (Base32. 0 nil hex? (int \=))]
        (fn parse
@@ -103,11 +103,11 @@
                                     5 3
                                     7 4
                                     8 5)
-                     [c0 c1 c2 c3 c4 c5 c6 c7 :as cs]
+                     [c0 c1 c2 c3 c4 c5 c6 c7]
                      (concat (map #(char->n (nth input (+ char-offset %)))
                                   (range input-chars))
                              (repeat (- 8 input-chars) 0))
-                     [b0 b1 b2 b3 b4 b5 :as bs]
+                     bs
                      [; 5 bits of c0 + top 3 bits of c1
                       (bit-or (bit-and 0xF8 (bit-shift-left  c0 3))
                               (bit-and 0x07 (bit-shift-right c1 2)))

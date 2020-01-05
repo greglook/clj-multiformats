@@ -198,8 +198,7 @@
   (loop [parts (->> #"/" (str/split address-str) (remove str/blank?))
          pairs []]
     (if-let [protocol-key (-> parts first keyword)]
-      (let [{:keys [code, codec] :as attrs}
-            (ensure-protocol-attrs protocol-key)
+      (let [codec (:codec (ensure-protocol-attrs protocol-key))
             fixed-len (codec/fixed-byte-length codec)]
         (if (and fixed-len (zero? fixed-len))
           (recur (next parts) (conj pairs [protocol-key nil]))

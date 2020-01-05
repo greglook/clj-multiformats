@@ -1,7 +1,6 @@
 (ns multiformats.cid-test
   (:require
     [alphabase.bytes :as b :refer [bytes=]]
-    [clojure.string :as str]
     #?(:clj [clojure.test :refer [deftest testing is]]
        :cljs [cljs.test :refer-macros [deftest testing is]])
     [multiformats.cid :as cid]

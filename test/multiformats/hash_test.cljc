@@ -15,19 +15,19 @@
 
 (deftest constructor-validation
   (is (thrown? #?(:clj ExceptionInfo, :cljs js/Error)
-               (mhash/create true "0beec7b8"))
+        (mhash/create true "0beec7b8"))
       "Unknown algorithm type should be rejected")
   (is (thrown? #?(:clj ExceptionInfo, :cljs js/Error)
-               (mhash/create :no-such-algo "0beec7b8"))
+        (mhash/create :no-such-algo "0beec7b8"))
       "Unknown algorithm keyword should be rejected")
   (is (thrown? #?(:clj ExceptionInfo, :cljs js/Error)
-               (mhash/create -1 "0beec7b8"))
+        (mhash/create -1 "0beec7b8"))
       "Negative algorithm code should be rejected")
   (is (thrown? #?(:clj ExceptionInfo, :cljs js/Error)
-               (mhash/create :sha1 nil))
+        (mhash/create :sha1 nil))
       "Nil digest should be rejected")
   (is (thrown? #?(:clj ExceptionInfo, :cljs js/Error)
-               (mhash/create 0x11 (b/byte-array 0)))
+        (mhash/create 0x11 (b/byte-array 0)))
       "Empty digest should be rejected"))
 
 
@@ -127,7 +127,7 @@
                (:digest mh4))
             "Constructed multihash digests match")
         (is (thrown? #?(:clj Exception, :cljs js/Error)
-                     (hash-fn 123)))))))
+              (hash-fn 123)))))))
 
 
 (deftest content-validation

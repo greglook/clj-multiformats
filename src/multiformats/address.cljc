@@ -12,17 +12,17 @@
 
   See https://github.com/multiformats/multiaddr for more info on format"
   (:require
-   [alphabase.bytes :as b]
-   [clojure.string :as str]
-   [multiformats.address.codec :as codec]
-   [multiformats.varint :as varint])
+    [alphabase.bytes :as b]
+    [clojure.string :as str]
+    [multiformats.address.codec :as codec]
+    [multiformats.varint :as varint])
   #?(:clj
      (:import
-      (clojure.lang
-       Seqable
-       IObj
-       IMeta
-       IPersistentCollection))))
+       (clojure.lang
+         IMeta
+         IObj
+         IPersistentCollection
+         Seqable))))
 
 
 (def protocol->attrs

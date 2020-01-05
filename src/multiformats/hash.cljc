@@ -5,9 +5,6 @@
 
   https://github.com/multiformats/multihash"
   (:refer-clojure :exclude [test])
-  #?(:cljs
-     (:require-macros
-       [multiformats.hash :refer [defhash]]))
   (:require
     [alphabase.bytes :as b]
     #?@(:cljs
@@ -18,6 +15,9 @@
          [goog.crypt.Sha512]])
     [multiformats.base.b16 :as hex]
     [multiformats.varint :as varint])
+  #?(:cljs
+     (:require-macros
+       [multiformats.hash :refer [defhash]]))
   #?(:clj
      (:import
        (clojure.lang
@@ -225,7 +225,7 @@
     (throw (ex-info
              (str (pr-str algorithm)
                   " is not a valid algorithm keyword or numeric code.")
-              {:algorithm algorithm}))))
+             {:algorithm algorithm}))))
 
 
 (defn- resolve-digest

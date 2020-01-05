@@ -13,16 +13,16 @@
 
 (deftest constructor-validation
   (is (thrown? #?(:clj ExceptionInfo, :cljs js/Error)
-               (cid/create true (mhash/sha1 "hello world")))
+        (cid/create true (mhash/sha1 "hello world")))
       "Unknown codec type should be rejected")
   (is (thrown? #?(:clj ExceptionInfo, :cljs js/Error)
-               (cid/create :no-such-codec (mhash/create :sha1 "0beec7b8")))
+        (cid/create :no-such-codec (mhash/create :sha1 "0beec7b8")))
       "Unknown algorithm keyword should be rejected")
   (is (thrown? #?(:clj ExceptionInfo, :cljs js/Error)
-               (cid/create -1 (mhash/sha1 "hello world")))
+        (cid/create -1 (mhash/sha1 "hello world")))
       "Negative codec code should be rejected")
   (is (thrown? #?(:clj ExceptionInfo, :cljs js/Error)
-               (cid/create :cbor nil))
+        (cid/create :cbor nil))
       "Nil hash should be rejected"))
 
 

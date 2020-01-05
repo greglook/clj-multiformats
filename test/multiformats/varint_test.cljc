@@ -7,15 +7,15 @@
 
 
 (deftest varint-coding
-  (let [examples {    0 [0x00]
-                      1 [0x01]
-                    127 [0x7F]
-                    128 [0x80 0x01]
-                    129 [0x81 0x01]
-                    255 [0xFF 0x01]
-                    256 [0x80 0x02]
-                    257 [0x81 0x02]
-                    300 [0xAC 0x02]
+  (let [examples {0 [0x00]
+                  1 [0x01]
+                  127 [0x7F]
+                  128 [0x80 0x01]
+                  129 [0x81 0x01]
+                  255 [0xFF 0x01]
+                  256 [0x80 0x02]
+                  257 [0x81 0x02]
+                  300 [0xAC 0x02]
                   16384 [0x80 0x80 0x01]}]
     (doseq [[n bs] examples]
       (is (= bs (b/byte-seq (varint/encode n))))

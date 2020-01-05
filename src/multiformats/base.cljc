@@ -5,17 +5,17 @@
 
   https://github.com/multiformats/multibase"
   (:refer-clojure :exclude [bases format])
-  #?(:cljs
-     (:require-macros
-       [multiformats.base :refer [defbase]]))
   (:require
     [clojure.string :as str]
-    [multiformats.base.b2 :as b2]
-    [multiformats.base.b8 :as b8]
     [multiformats.base.b16 :as b16]
+    [multiformats.base.b2 :as b2]
     [multiformats.base.b32 :as b32]
     [multiformats.base.b58 :as b58]
-    [multiformats.base.b64 :as b64]))
+    [multiformats.base.b64 :as b64]
+    [multiformats.base.b8 :as b8])
+  #?(:cljs
+     (:require-macros
+       [multiformats.base :refer [defbase]])))
 
 
 (def codes

@@ -284,7 +284,7 @@
                    (instance? ContentID x) x
                    (b/bytes? x) (decode x)
                    (string? x) (parse x)
-                    :else nil)]
+                   :else nil)]
     (cond-> {:length (:length cid)
              :version (:version cid)
              :codec (:codec cid)

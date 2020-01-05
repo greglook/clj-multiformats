@@ -97,13 +97,13 @@
   ([^bytes data offset]
    (when (< offset (alength data))
      (lazy-seq
-      (let [[code code-len] (varint/read-bytes data offset)
-            protocol-key (get code->protocol code)
-            codec (:codec (ensure-protocol-attrs protocol-key))
-            val-start (+ offset code-len)
-            [value num-read] (decode-value codec data val-start)]
-        (cons [protocol-key value]
-              (protocol-value-seq data (+ offset code-len num-read))))))))
+       (let [[code code-len] (varint/read-bytes data offset)
+             protocol-key (get code->protocol code)
+             codec (:codec (ensure-protocol-attrs protocol-key))
+             val-start (+ offset code-len)
+             [value num-read] (decode-value codec data val-start)]
+         (cons [protocol-key value]
+               (protocol-value-seq data (+ offset code-len num-read))))))))
 
 
 (defn- concat-arrs

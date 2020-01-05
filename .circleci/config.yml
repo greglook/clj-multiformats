@@ -39,8 +39,8 @@ jobs:
             wget https://github.com/borkdude/clj-kondo/releases/download/v${CLJ_KONDO_VERSION}/clj-kondo-${CLJ_KONDO_VERSION}-linux-amd64.zip
             unzip clj-kondo-${CLJ_KONDO_VERSION}-linux-amd64.zip
       - run:
-          name: Lint source code
-          command: "./clj-kondo --lint $(lein classpath)"
+          name: clj-kondo
+          command: "./clj-kondo --lint src test"
 
   test-clj:
     executor: clojure

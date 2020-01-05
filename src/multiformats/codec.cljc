@@ -159,7 +159,7 @@
     (throw (ex-info
              (str (pr-str codec)
                   " is not a valid codec keyword or numeric code.")
-              {:codec codec}))))
+             {:codec codec}))))
 
 
 (defn resolve-code
@@ -183,4 +183,4 @@
     (throw (ex-info
              (str (pr-str codec)
                   " is not a valid codec keyword or numeric code.")
-              {:codec codec}))))
+             {:codec codec}))))

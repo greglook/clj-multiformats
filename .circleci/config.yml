@@ -1,30 +1,118 @@
-version: 2
+version: 2.1
+
+# Common executor configuration
+executors:
+  clojure:
+    docker:
+      - image: circleci/clojure:openjdk-11-lein-2.9.1
+    working_directory: ~/repo
+
 
 jobs:
-  build:
-    working_drectory: ~/code
-    docker:
-      - image: circleci/clojure:openjdk-8-lein-2.8.1
-    environment:
-      QT_QPA_PLATFORM: offscreen
+  style:
+    executor: clojure
     steps:
-      - run: sudo apt-get update && sudo apt-get install -y rhino phantomjs
+      - checkout
+      - run:
+          name: Install cljstyle
+          environment:
+            CLJSTYLE_VERSION: 0.10.1
+          command: |
+            wget https://github.com/greglook/cljstyle/releases/download/${CLJSTYLE_VERSION}/cljstyle_${CLJSTYLE_VERSION}_linux.tar.gz
+            tar -xzf cljstyle_${CLJSTYLE_VERSION}_linux.tar.gz
+      - run:
+          name: Check source formatting
+          command: "./cljstyle check --stats style-stats.tsv"
+      - store_artifacts:
+          path: style-stats.tsv
+          destination: style
+
+  lint:
+    executor: clojure
+    steps:
+      - checkout
+      - run:
+          name: Install clj-kondo
+          environment:
+            CLJ_KONDO_VERSION: 2019.12.14
+          command: |
+            wget https://github.com/borkdude/clj-kondo/releases/download/v${CLJ_KONDO_VERSION}/clj-kondo-${CLJ_KONDO_VERSION}-linux-amd64.zip
+            unzip clj-kondo-${CLJ_KONDO_VERSION}-linux-amd64.zip
+      - run:
+          name: Lint source code
+          command: "./clj-kondo --lint $(lein classpath)"
+
+  test-clj:
+    executor: clojure
+    steps:
       - checkout
       - restore_cache:
           keys:
-            - v1-{{ checksum "project.clj" }}
-            - v1-
+            - v1-test-clj-{{ checksum "project.clj" }}
+            - v1-test-clj-
       - run: lein deps
-      - run: lein clj:test
-      - run: lein cljs:test
-      - run: lein cloverage --codecov
+      - run: lein check
+      - run: lein test
       - save_cache:
-          key: v1-{{ checksum "project.clj" }}
+          key: v1-test-clj-{{ checksum "project.clj" }}
           paths:
             - ~/.m2
+
+  test-cljs:
+    executor: clojure
+    environment:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - run:
+          name: Install Javascript platforms
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y rhino phantomjs
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-test-cljs-{{ checksum "project.clj" }}
+            - v1-test-cljs-
+      - run: lein cljs:check
+      - run: lein cljs:test
+      - save_cache:
+          key: v1-test-cljs-{{ checksum "project.clj" }}
+          paths:
+            - ~/.m2
+
+  coverage:
+    executor: clojure
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-coverage-{{ checksum "project.clj" }}
+            - v1-coverage-
+            - v1-test-clj-
+      - run:
+          name: Generate test coverage
+          command: lein cloverage --codecov
+      - save_cache:
+          paths:
+            - ~/.m2
+          key: v1-coverage-{{ checksum "project.clj" }}
       - store_artifacts:
           path: target/coverage
           destination: coverage
       - run:
           name: Publish Coverage
-          command: "bash <(curl -s https://codecov.io/bash) -f target/coverage/codecov.json"
+          command: 'bash <(curl -s https://codecov.io/bash) -f target/coverage/codecov.json'
+
+
+# Workflow definitions
+workflows:
+  version: 2
+  test:
+    jobs:
+      - style
+      - lint
+      - test-clj
+      - test-cljs
+      - coverage:
+          requires:
+            - test-clj

@@ -10,7 +10,7 @@
   :aliases
   {"clj:test" ["do" ["check"] ["test"]]
    "cljs:check" ["with-profile" "+doo" "cljsbuild" "once"]
-   "cljs:repl" ["run" "-m" "clojure.main" "dev/cljs_repl.clj"]
+   "cljs:repl" ["run" "-m" "clojure.main" "dev/multiformats/cljs_repl.clj"]
    "cljs:test" ["doo" "phantom" "test" "once"]}
 
   :plugins
@@ -48,14 +48,18 @@
    {:dependencies
     [[org.clojure/clojure "1.10.1"]
      [org.clojure/clojurescript "1.10.520"]
-     [org.clojure/tools.namespace "0.3.1"]
      ;; Conflict resolution
      [com.google.code.findbugs/jsr305 "3.0.2"]
      [com.google.errorprone/error_prone_annotations "2.1.3"]
      [org.clojure/tools.reader "1.3.2"]]}
 
    :repl
-   {:source-paths ["dev"]}
+   {:source-paths ["dev"]
+    :repl-options {:init-ns multiformats.repl}
+    :dependencies
+    [[clj-stacktrace "0.2.8"]
+     [org.clojure/tools.namespace "0.2.11"]
+     [org.clojure/tools.namespace "0.3.1"]]}
 
    :doo
    {:dependencies

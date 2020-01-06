@@ -1,4 +1,4 @@
-(ns user
+(ns multiformats.repl
   (:require
     [clojure.java.io :as io]
     [clojure.repl :refer :all]

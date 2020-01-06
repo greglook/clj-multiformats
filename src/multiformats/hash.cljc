@@ -378,6 +378,10 @@
        (create algo-key# digest#))))
 
 
+;; Appease clj-kondo
+(declare md5 sha1 sha2-256 sha2-512)
+
+
 (defhash md5)
 (defhash sha1)
 (defhash sha2-256)

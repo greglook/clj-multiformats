@@ -57,6 +57,26 @@
      (assoc ~params :key ~(keyword base-sym))))
 
 
+;; Appease clj-kondo
+(declare base2
+         base8
+         base16
+         BASE16
+         base32
+         BASE32
+         base32pad
+         BASE32PAD
+         base32hex
+         BASE32HEX
+         base32hexpad
+         BASE32HEXPAD
+         base58btc
+         base64
+         base64pad
+         base64url
+         base64urlpad)
+
+
 ;; ### Binary
 
 (defbase base2

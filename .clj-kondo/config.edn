@@ -1,27 +1,4 @@
-{:linters {:unresolved-symbol
-           {:exclude [base2
-                      base8
-                      base16
-                      BASE16
-                      base32
-                      BASE32
-                      base32pad
-                      BASE32PAD
-                      base32hex
-                      BASE32HEX
-                      base32hexpad
-                      BASE32HEXPAD
-                      base58btc
-                      base64
-                      base64pad
-                      base64url
-                      base64urlpad
-                      md5
-                      sha1
-                      sha2-256
-                      sha2-512]}
-
-           :consistent-alias
+{:linters {:consistent-alias
            {:level :warning
             :aliases {clojure.java.io io
                       clojure.set set

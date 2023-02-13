@@ -6,8 +6,8 @@
   https://github.com/multiformats/multihash"
   (:refer-clojure :exclude [test])
   (:require
-    [alphabase.bytes :as b]
-    #?@(:cljs
+   [alphabase.bytes :as b]
+   #?@(:cljs
         [[goog.crypt :as crypt]
          [goog.crypt.Md5]
          [goog.crypt.Sha1]
@@ -101,101 +101,127 @@
 
 
 ;; ## Multihash Type
+#?(:bb
+   (do
+     (defn length [mhash]
+       (count (:_bytes mhash)))
 
-(deftype Multihash
-  [^bytes _bytes
-   _meta
-   ^:unsynchronized-mutable _hash]
+     (defn digest [mhash]
+       (:digest (decode-parameters (:_bytes mhash))))
 
-  Object
+     (defn code [mhash]
+       (first (read-header (:_bytes mhash))))
 
-  (toString
-    [this]
-    (let [params (decode-parameters _bytes)
-          algo (if-let [algorithm (:algorithm params)]
-                 (name algorithm)
-                 (:code params))]
-      (str "hash:" algo \: (:digest params))))
+     (defn algorithm [mhash]
+       (let [[code] (read-header (:_bytes mhash))]
+         (find-algorithm code)))
 
+     (defn bits [mhash]
+       (let [[_ length] (read-header (:_bytes mhash))]
+         (* length 8)))))
 
-  #?(:clj java.io.Serializable)
+#?(:bb
+   (defrecord Multihash
+       [_bytes _meta _hash]
+     Object
+     (toString
+       [this]
+       (str "hash:" (name (algorithm this)) \: (digest this))))
+   :default
+   (deftype Multihash
+       [^bytes _bytes
+        _meta
+        ^:unsynchronized-mutable _hash]
 
+     Object
 
-  #?(:cljs IEquiv)
-
-  (#?(:clj equals, :cljs -equiv)
-    [this that]
-    (cond
-      (identical? this that) true
-
-      (instance? Multihash that)
-      (b/bytes= _bytes (#?(:clj ._bytes :cljs .-_bytes) ^Multihash that))
-
-      :else false))
-
-
-  #?(:cljs IHash)
-
-  (#?(:clj hashCode, :cljs -hash)
-    [this]
-    (let [hc _hash]
-      (if (zero? hc)
-        (let [params (decode-parameters _bytes)
-              hc (hash [::multihash (:code params) (:digest params)])]
-          (set! _hash hc)
-          hc)
-        hc)))
+     (toString
+       [this]
+       (let [params (decode-parameters _bytes)
+             algo (if-let [algorithm (:algorithm params)]
+                    (name algorithm)
+                    (:code params))]
+         (str "hash:" algo \: (:digest params))))
 
 
-  #?(:clj Comparable, :cljs IComparable)
-
-  (#?(:clj compareTo, :cljs -compare)
-    [this that]
-    (cond
-      (identical? this that) 0
-
-      (instance? Multihash that)
-      (b/compare _bytes (#?(:clj ._bytes :cljs .-_bytes) ^Multihash that))
-
-      :else
-      (throw (ex-info
-               (str "Cannot compare multihash value to " (type that))
-               {:this this
-                :that that}))))
+     #?(:clj java.io.Serializable)
 
 
-  ILookup
+     #?(:cljs IEquiv)
 
-  (#?(:clj valAt, :cljs -lookup)
-    [this k]
-    (#?(:clj .valAt, :cljs -lookup) this k nil))
+     (#?(:clj equals, :cljs -equiv)
+       [this that]
+       (cond
+         (identical? this that) true
 
+         (instance? Multihash that)
+         (b/bytes= _bytes (#?(:clj ._bytes :cljs .-_bytes) ^Multihash that))
 
-  (#?(:clj valAt, :cljs -lookup)
-    [this k not-found]
-    (case k
-      :length (alength _bytes)
-      :code (first (read-header _bytes))
-      :algorithm (let [[code] (read-header _bytes)]
-                   (find-algorithm code))
-      :bits (let [[_ length] (read-header _bytes)]
-              (* length 8))
-      :digest (:digest (decode-parameters _bytes))
-      not-found))
+         :else false))
 
 
-  IMeta
+     #?(:cljs IHash)
 
-  (#?(:clj meta, :cljs -meta)
-    [this]
-    _meta)
+     (#?(:clj hashCode, :cljs -hash)
+       [this]
+       (let [hc _hash]
+         (if (zero? hc)
+           (let [params (decode-parameters _bytes)
+                 hc (hash [::multihash (:code params) (:digest params)])]
+             (set! _hash hc)
+             hc)
+           hc)))
 
 
-  #?(:clj IObj, :cljs IWithMeta)
+     #?(:clj Comparable, :cljs IComparable)
 
-  (#?(:clj withMeta, :cljs -with-meta)
-    [this meta-map]
-    (Multihash. _bytes meta-map _hash)))
+     (#?(:clj compareTo, :cljs -compare)
+       [this that]
+       (cond
+         (identical? this that) 0
+
+         (instance? Multihash that)
+         (b/compare _bytes (#?(:clj ._bytes :cljs .-_bytes) ^Multihash that))
+
+         :else
+         (throw (ex-info
+                 (str "Cannot compare multihash value to " (type that))
+                 {:this this
+                  :that that}))))
+
+
+     ILookup
+
+     (#?(:clj valAt, :cljs -lookup)
+       [this k]
+       (#?(:clj .valAt, :cljs -lookup) this k nil))
+
+
+     (#?(:clj valAt, :cljs -lookup)
+       [this k not-found]
+       (case k
+         :length (alength _bytes)
+         :code (first (read-header _bytes))
+         :algorithm (let [[code] (read-header _bytes)]
+                      (find-algorithm code))
+         :bits (let [[_ length] (read-header _bytes)]
+                 (* length 8))
+         :digest (:digest (decode-parameters _bytes))
+         not-found))
+
+
+     IMeta
+
+     (#?(:clj meta, :cljs -meta)
+       [this]
+       _meta)
+
+
+     #?(:clj IObj, :cljs IWithMeta)
+
+     (#?(:clj withMeta, :cljs -with-meta)
+       [this meta-map]
+       (Multihash. _bytes meta-map _hash))))
 
 
 (alter-meta! #'->Multihash assoc :private true)
@@ -402,14 +428,18 @@
   nil if either argument is nil, true if the digest matches, or false if not.
   Throws an exception if the multihash specifies an unsupported algorithm."
   [mhash content]
-  (when (and mhash content)
-    (if-let [hasher (init-hasher (:algorithm mhash))]
-      (let [digest (digest-content hasher content)
-            other (create (:code mhash) digest)]
-        (= mhash other))
-      (throw (ex-info
-               (str "No supported hashing function for algorithm "
-                    (or (:algorithm mhash) (:code mhash))
-                    " to validate " mhash)
-               {:code (:code mhash)
-                :algorithm (:algorithm mhash)})))))
+  (let [algo #?(:bb algorithm :default :algorithm)
+        code #?(:bb code :default :code)]
+    (when (and mhash content)
+      (if-let [hasher (init-hasher (algo mhash))]
+        (let [digest (digest-content hasher content)
+              other (create (code mhash) digest)]
+          #?(:bb (= (multiformats.hash/digest mhash)
+                    (multiformats.hash/digest other))
+             :default (= mhash other)))
+        (throw (ex-info
+                (str "No supported hashing function for algorithm "
+                     (or (algo mhash) (:code mhash))
+                     " to validate " mhash)
+                {:code (:code mhash)
+                 :algorithm (algo mhash)}))))))

@@ -80,6 +80,24 @@ jobs:
           paths:
             - ~/.m2
 
+  test-bb:
+    executor: clojure
+    steps:
+      - run:
+          name: Install babashka
+          command: |
+            sudo bash < <(curl -s https://raw.githubusercontent.com/babashka/babashka/master/install)
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-test-cljs-{{ checksum "project.clj" }}
+            - v1-test-cljs-
+      - run: bb test:bb
+      - save_cache:
+          key: v1-test-cljs-{{ checksum "project.clj" }}
+          paths:
+            - ~/.m2
+
   coverage:
     executor: clojure
     steps:

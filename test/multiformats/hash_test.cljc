@@ -29,17 +29,18 @@
         (mhash/create 0x11 (b/byte-array 0)))
       "Empty digest should be rejected"))
 
-
-(deftest value-semantics
-  (let [a (mhash/create 0x11 "0beec7b8")
-        b (mhash/create 0x11 "94a1be0c")
-        c (mhash/create 0x12 "00a8b94e")
-        c' (mhash/create 0x12 (b/init-bytes [0x00 0xa8 0xb9 0x4e]))]
-    (is (= a a) "Identical values are equal")
-    (is (= c c') "Values with same code and digest are equal")
-    (is (integer? (hash b)) "Hash code returns an integer")
-    (is (= (hash c) (hash c')) "Equivalent objects return same hashcode")
-    (is (= [a b c] (sort [c b a])) "Multihashes sort in code/digest order")))
+#?(:bb nil :default
+   (deftest value-semantics
+     (let [a (mhash/create 0x11 "0beec7b8")
+           b (mhash/create 0x11 "94a1be0c")
+           c (mhash/create 0x12 "00a8b94e")
+           c' (mhash/create 0x12 (b/init-bytes [0x00 0xa8 0xb9 0x4e]))]
+       (is (= a a) "Identical values are equal")
+       (is (= c c') "Values with same code and digest are equal")
+       (is (integer? (hash b)) "Hash code returns an integer")
+       (is (= (hash c) (hash c')) "Equivalent objects return same hashcode")
+       #?(:bb nil
+          :default (is (= [a b c] (sort [c b a])) "Multihashes sort in code/digest order")))))
 
 
 (deftest multihash-rendering
@@ -76,30 +77,38 @@
    "22040006b46b"
    [0x22 :murmur3 32 "0006b46b"]})
 
+(def length #?(:bb mhash/length :default :length))
+(def code* #?(:bb mhash/code :default :code))
+(def algorithm* #?(:bb mhash/algorithm :default :algorithm))
+(def digest* #?(:bb mhash/digest :default :digest))
+(def bits* #?(:bb mhash/bits :default :bits))
 
 (deftest example-coding
   (testing "Encoding is reflexive"
     (let [mhash (mhash/create 0x02 "0beec7b8")
           encoded (mhash/encode mhash)]
-      (is (= 6 (:length mhash) (alength encoded)))
-      (is (= mhash (mhash/decode encoded)))))
+      (is (= 6 (length mhash) (alength encoded)))
+      #?(:bb nil
+         :default (is (= mhash (mhash/decode encoded))))))
   (testing "buffer writes"
     (let [mhash (mhash/create :sha1 "deadbeef")
-          buffer (b/byte-array (+ 4 (:length mhash)))]
+          buffer (b/byte-array (+ 4 (length mhash)))]
       (is (= 6 (mhash/write-bytes mhash buffer 2)))
       (is (bytes= (b/init-bytes [0x00 0x00 0x11 0x04 0xde 0xad 0xbe 0xef 0x00 0x00])
                   buffer))))
   (doseq [[hex [code algorithm bits digest]] examples]
     (let [mhash (mhash/create algorithm digest)]
-      (is (= (/ (count hex) 2) (:length mhash)))
-      (is (= code (:code mhash)))
-      (is (= algorithm (:algorithm mhash)))
-      (is (= bits (:bits mhash)))
-      (is (= digest (:digest mhash)))
+      (is (= (/ (count hex) 2) (length mhash)))
+      (is (= code (code* mhash)))
+      (is (= algorithm (algorithm* mhash)))
+      (is (= bits (bits* mhash)))
+      (is (= digest (digest* mhash)))
       (is (= hex (mhash/hex mhash))
           "Encoded multihashes match expected hex")
-      (is (= mhash (mhash/parse hex))
-          "Hex parses back to multihash"))))
+      #?(:bb nil
+         :default
+         (is (= mhash (mhash/parse hex))
+             "Hex parses back to multihash")))))
 
 
 (deftest hashing-constructors
@@ -115,15 +124,15 @@
             mh4 #?(:clj (hash-fn (ByteArrayInputStream. (.getBytes content)))
                    :cljs mh1)]
         (is (= algorithm
-               (:algorithm mh1)
-               (:algorithm mh2)
-               (:algorithm mh3)
-               (:algorithm mh4))
+               (algorithm* mh1)
+               (algorithm* mh2)
+               (algorithm* mh3)
+               (algorithm* mh4))
             "Constructed multihash algorithms match")
-        (is (= (:digest mh1)
-               (:digest mh2)
-               (:digest mh3)
-               (:digest mh4))
+        (is (= (digest* mh1)
+               (digest* mh2)
+               (digest* mh3)
+               (digest* mh4))
             "Constructed multihash digests match")
         (is (thrown? #?(:clj Exception, :cljs js/Error)
               (hash-fn 123)))))))

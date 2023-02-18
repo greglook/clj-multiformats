@@ -2,8 +2,8 @@
   "Hexadecimal base encoding implementation."
   (:refer-clojure :exclude [format])
   (:require
-   [alphabase.bytes :as b]
-   [alphabase.hex :as hex]))
+    [alphabase.bytes :as b]
+    [alphabase.hex :as hex]))
 
 (defn byte->hex
   "Converts a single byte value to a two-character hex string."

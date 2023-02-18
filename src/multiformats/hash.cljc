@@ -6,8 +6,8 @@
   https://github.com/multiformats/multihash"
   (:refer-clojure :exclude [test])
   (:require
-   [alphabase.bytes :as b]
-   #?@(:cljs
+    [alphabase.bytes :as b]
+    #?@(:cljs
         [[goog.crypt :as crypt]
          [goog.crypt.Md5]
          [goog.crypt.Sha1]
@@ -103,35 +103,40 @@
 ;; ## Multihash Type
 #?(:bb
    (do
-     (defn length [mhash]
+     (defn length
+       [mhash]
        (count (:_bytes mhash)))
 
-     (defn digest [mhash]
+     (defn digest
+       [mhash]
        (:digest (decode-parameters (:_bytes mhash))))
 
-     (defn code [mhash]
+     (defn code
+       [mhash]
        (first (read-header (:_bytes mhash))))
 
-     (defn algorithm [mhash]
+     (defn algorithm
+       [mhash]
        (let [[code] (read-header (:_bytes mhash))]
          (find-algorithm code)))
 
-     (defn bits [mhash]
+     (defn bits
+       [mhash]
        (let [[_ length] (read-header (:_bytes mhash))]
          (* length 8)))))
 
 #?(:bb
    (defrecord Multihash
-       [_bytes _meta _hash]
+     [_bytes _meta _hash]
      Object
      (toString
        [this]
        (str "hash:" (name (algorithm this)) \: (digest this))))
    :default
    (deftype Multihash
-       [^bytes _bytes
-        _meta
-        ^:unsynchronized-mutable _hash]
+     [^bytes _bytes
+      _meta
+      ^:unsynchronized-mutable _hash]
 
      Object
 
@@ -185,9 +190,9 @@
 
          :else
          (throw (ex-info
-                 (str "Cannot compare multihash value to " (type that))
-                 {:this this
-                  :that that}))))
+                  (str "Cannot compare multihash value to " (type that))
+                  {:this this
+                   :that that}))))
 
 
      ILookup
@@ -438,8 +443,8 @@
                     (multiformats.hash/digest other))
              :default (= mhash other)))
         (throw (ex-info
-                (str "No supported hashing function for algorithm "
-                     (or (algo mhash) (:code mhash))
-                     " to validate " mhash)
-                {:code (:code mhash)
-                 :algorithm (algo mhash)}))))))
+                 (str "No supported hashing function for algorithm "
+                      (or (algo mhash) (:code mhash))
+                      " to validate " mhash)
+                 {:code (:code mhash)
+                  :algorithm (algo mhash)}))))))

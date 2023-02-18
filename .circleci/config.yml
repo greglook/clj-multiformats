@@ -94,7 +94,7 @@ jobs:
             - v1-test-bb-
       - run: bb test:bb
       - save_cache:
-          key: v1-test-cljs-{{ checksum "project.clj" }}
+          key: v1-test-bb-{{ checksum "project.clj" }}
           paths:
             - ~/.m2
 

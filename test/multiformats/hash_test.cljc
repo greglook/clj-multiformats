@@ -29,6 +29,7 @@
         (mhash/create 0x11 (b/byte-array 0)))
       "Empty digest should be rejected"))
 
+
 #?(:bb nil :default
    (deftest value-semantics
      (let [a (mhash/create 0x11 "0beec7b8")
@@ -77,11 +78,13 @@
    "22040006b46b"
    [0x22 :murmur3 32 "0006b46b"]})
 
+
 (def length #?(:bb mhash/length :default :length))
 (def code* #?(:bb mhash/code :default :code))
 (def algorithm* #?(:bb mhash/algorithm :default :algorithm))
 (def digest* #?(:bb mhash/digest :default :digest))
 (def bits* #?(:bb mhash/bits :default :bits))
+
 
 (deftest example-coding
   (testing "Encoding is reflexive"

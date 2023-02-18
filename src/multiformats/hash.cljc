@@ -125,6 +125,7 @@
        (let [[_ length] (read-header (:_bytes mhash))]
          (* length 8)))))
 
+
 #?(:bb
    (defrecord Multihash
      [_bytes _meta _hash]

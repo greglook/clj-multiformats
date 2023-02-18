@@ -5,6 +5,7 @@
     [alphabase.bytes :as b]
     [alphabase.hex :as hex]))
 
+
 (defn byte->hex
   "Converts a single byte value to a two-character hex string."
   [value]
@@ -14,6 +15,7 @@
       (str "0" hex)
       hex)))
 
+
 (defn format-slice
   "Format a slice of a byte array as a hex string."
   [data offset length]
@@ -21,11 +23,13 @@
        (map #(byte->hex (b/get-byte data %)))
        (apply str)))
 
+
 (defn format
   "Format byte data as a hexadecimal-encoded string."
   ^String
   [^bytes data]
   (hex/encode data))
+
 
 (defn parse
   "Parse a hexadecimal-encoded string into bytes."

@@ -101,30 +101,6 @@
 
 
 ;; ## Multihash Type
-#?(:bb
-   (do
-     (defn length
-       [mhash]
-       (count (:_bytes mhash)))
-
-     (defn digest
-       [mhash]
-       (:digest (decode-parameters (:_bytes mhash))))
-
-     (defn code
-       [mhash]
-       (first (read-header (:_bytes mhash))))
-
-     (defn algorithm
-       [mhash]
-       (let [[code] (read-header (:_bytes mhash))]
-         (find-algorithm code)))
-
-     (defn bits
-       [mhash]
-       (let [[_ length] (read-header (:_bytes mhash))]
-         (* length 8)))))
-
 
 #?(:bb
    (defrecord Multihash
@@ -132,7 +108,7 @@
      Object
      (toString
        [this]
-       (str "hash:" (name (algorithm this)) \: (digest this))))
+       (str "hash:" (name (:algorithm this)) \: (:digest this))))
    :default
    (deftype Multihash
      [^bytes _bytes
@@ -280,8 +256,17 @@
   numeric code) and digest byte array (or hex string)."
   [algorithm digest]
   (let [code (resolve-code algorithm)
-        digest (resolve-digest digest)]
-    (->Multihash (encode-bytes code digest) nil 0)))
+        digest-bytes (resolve-digest digest)]
+    #?(:bb (let [bytes (encode-bytes code digest-bytes)
+                 bc (count bytes)
+                 hex (hex/format digest-bytes)]
+             (-> (->Multihash bytes nil 0)
+                 (assoc :length bc)
+                 (assoc :digest hex)
+                 (assoc :code code)
+                 (assoc :algorithm (find-algorithm code))
+                 (assoc :bits (* 8 (count digest-bytes)))))
+       :default (->Multihash (encode-bytes code digest-bytes) nil 0))))
 
 
 
@@ -434,14 +419,14 @@
   nil if either argument is nil, true if the digest matches, or false if not.
   Throws an exception if the multihash specifies an unsupported algorithm."
   [mhash content]
-  (let [algo #?(:bb algorithm :default :algorithm)
-        code #?(:bb code :default :code)]
+  (let [algo :algorithm
+        code :code]
     (when (and mhash content)
       (if-let [hasher (init-hasher (algo mhash))]
         (let [digest (digest-content hasher content)
               other (create (code mhash) digest)]
-          #?(:bb (= (multiformats.hash/digest mhash)
-                    (multiformats.hash/digest other))
+          #?(:bb (= (:digest mhash)
+                    (:digest other))
              :default (= mhash other)))
         (throw (ex-info
                  (str "No supported hashing function for algorithm "

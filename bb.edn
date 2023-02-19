@@ -1,0 +1,9 @@
+{:deps {mvxcvi/multiformats {:local/root "."}}
+ :tasks
+ {test:bb {:extra-paths ["test"]
+           :extra-deps {io.github.cognitect-labs/test-runner
+                        {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
+           :requires ([cognitect.test-runner])
+           :task (apply cognitect.test-runner/-main
+                        "--namespace" "multiformats.hash-test"
+                        *command-line-args*)}}}

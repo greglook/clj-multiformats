@@ -1,0 +1,4 @@
+{:paths ["src" "resources"],
+ :deps
+ {mvxcvi/alphabase {:mvn/version "2.1.0"},
+  commons-codec/commons-codec {:mvn/version "1.14"}}}

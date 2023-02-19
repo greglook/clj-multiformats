@@ -21,24 +21,24 @@
                     {:value value})))
   (loop [v value
          i 0]
-    ; Check for index out of bounds.
+    ;; Check for index out of bounds.
     (when (<= (alength buffer) (+ offset i))
       (throw (ex-info
                (str "Varint write index out of bounds at position "
                     (+ offset i) " (" i " bytes from offset " offset ")")
                {:offset (+ offset i)})))
-    ; Check for overflow.
+    ;; Check for overflow.
     (when (<= 9 i)
       (throw (ex-info
                "Varints larger than nine bytes are not currently supported"
                {:value value})))
     (if (<= 0x80 v)
-      ; Write continuation byte and recur.
+      ;; Write continuation byte and recur.
       (let [b (bit-or (bit-and v 0x7F) 0x80)]
         (b/set-byte buffer (+ offset i) b)
         (recur (unsigned-bit-shift-right v 7)
                (inc i)))
-      ; Final byte.
+      ;; Final byte.
       (let [b (bit-and v 0x7F)]
         (b/set-byte buffer (+ offset i) b)
         (inc i)))))
@@ -56,7 +56,6 @@
     result))
 
 
-
 ;; ## Decoding
 
 (defn read-bytes
@@ -66,25 +65,25 @@
   (loop [i offset
          n 0
          v 0]
-    ; Check for index out of bounds.
+    ;; Check for index out of bounds.
     (when (<= (alength data) i)
       (throw (ex-info
                (str "Ran out of bytes to decode at position " i
                     " (" n " bytes from offset " offset ")")
                {:offset offset
                 :length (alength data)})))
-    ; Check for overflow of soft limit.
+    ;; Check for overflow of soft limit.
     (when (<= 9 n)
       (throw (ex-info
                "Varints larger than nine bytes are not currently supported"
                {:offset offset})))
-    ; Decode next byte.
+    ;; Decode next byte.
     (let [b (b/get-byte data i)]
       (if (< b 0x80)
-        ; Final byte.
+        ;; Final byte.
         [(bit-or (bit-shift-left b (* 7 n)) v)
          (inc n)]
-        ; Continuation byte. Add masked lower bits and recur.
+        ;; Continuation byte. Add masked lower bits and recur.
         (recur (inc i)
                (inc n)
                (bit-or (bit-shift-left (bit-and b 0x7F) (* 7 n)) v))))))

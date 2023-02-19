@@ -20,15 +20,15 @@
 
 (def codes
   "Map of base keys to multicodec packed symbols from the standard table."
-  {; Numeric
+  {;; Numeric
    :base1         \1
    :base2         \0
    :base8         \7
    :base10        \9
-   ; Hexadecimal (RFC 4648)
+   ;; Hexadecimal (RFC 4648)
    :base16        \f
    :BASE16        \F
-   ; Base32 (RFC 4648)
+   ;; Base32 (RFC 4648)
    :base32        \b
    :BASE32        \B
    :base32pad     \c
@@ -37,15 +37,14 @@
    :BASE32HEX     \V
    :base32hexpad  \t
    :BASE32HEXPAD  \T
-   ; Base58
+   ;; Base58
    :base58btc     \z
    :base58flickr  \Z
-   ; Base64 (RFC 4648)
+   ;; Base64 (RFC 4648)
    :base64        \m
    :base64pad     \M
    :base64url     \u
    :base64urlpad  \U})
-
 
 
 ;; ## Base Encodings
@@ -174,7 +173,6 @@
   :parser b64/parse)
 
 
-
 ;; ## Lookup Functions
 
 (defn- install-base
@@ -231,7 +229,6 @@
   (into {} (map (juxt (comp :prefix val) key)) bases))
 
 
-
 ;; ## Encoding
 
 (defn format*
@@ -258,7 +255,6 @@
   [base-key ^bytes data]
   (let [prefix (get codes base-key)]
     (str prefix (format* base-key data))))
-
 
 
 ;; ## Decoding

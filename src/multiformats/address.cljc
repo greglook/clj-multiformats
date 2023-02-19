@@ -119,10 +119,10 @@
 
 
 (defn- entry-bytes
-  "build byte array representation for protocol/value pair,
+  "Build byte array representation for protocol/value pair,
    note that `value` may be nil for no-value protocols.
 
-   entry can either be a single keyword for a no-value protocol, or a
+   Entry can either be a single keyword for a no-value protocol, or a
    pair of [protocol-key value]. You can also pass in [key nil] for a protocol
    not expecting a value"
   [entry]
@@ -140,57 +140,153 @@
     (concat-arrs code-bytes val-len-bytes val-bytes)))
 
 
-(deftype Address
-  [^bytes _data _meta ^:unsynchronized-mutable _hash]
+(defn- address-str
+  "Produce a string representation of an address sequence."
+  [entries]
+  (->> (seq entries)
+       (mapcat (fn [[k v]] [(name k) v]))
+       (remove nil?)
+       (str/join "/")
+       (str "/")))
 
-  #?(:clj Seqable :cljs ISeqable)
-  (#?(:clj seq :cljs -seq) [this] (protocol-value-seq _data))
 
-  #?(:clj IPersistentCollection)
+#?(:clj
+   (deftype Address
+     [^bytes _data
+      _meta
+      ^:unsynchronized-mutable _hash]
 
-  #?(:cljs ICounted)
-  (#?(:clj count :cljs -count)
-    [this] (count (seq this)))
+     Seqable
 
-  #?(:cljs IEmptyableCollection)
-  (#?(:clj empty :cljs -empty)
-    [this] (Address. (b/byte-array 0) _meta 0))
+     (seq
+       [_]
+       (protocol-value-seq _data))
 
-  #?(:cljs IEquiv)
-  (#?(:clj equiv :cljs -equiv) [this other]
-    (and (instance? Address other)
-         (b/bytes= (.-_data this) (.-_data ^Address other))))
 
-  #?(:cljs ICollection)
-  (#?(:clj cons :cljs -conj) [this entry]
-    (Address. (concat-arrs _data (entry-bytes entry)) _meta 0))
+     IPersistentCollection
 
-  IMeta
-  (#?(:clj meta, :cljs -meta)
-    [this]
-    _meta)
+     (count
+       [this]
+       (count (seq this)))
 
-  #?(:clj IObj :cljs IWithMeta)
-  (#?(:clj withMeta :cljs -with-meta)
-    [this new-meta]
-    (Address. _data new-meta _hash))
 
-  #?(:cljs IHash)
-  (#?(:clj hashCode, :cljs -hash)
-    [this]
-    (if (zero? _hash)
-      (let [hc (hash (b/byte-seq _data))]
-        (set! _hash hc)
-        hc)
-      _hash))
+     (empty
+       [_]
+       (Address. (b/byte-array 0) _meta 0))
 
-  Object
-  (toString [this]
-    (->> this
-         (mapcat (fn [[k v]] [(name k) v]))
-         (remove nil?)
-         (str/join "/")
-         (str "/"))))
+
+     (equiv
+       [this other]
+       (and (instance? Address other)
+            (b/bytes= (.-_data this) (.-_data ^Address other))))
+
+
+     (cons
+       [_ entry]
+       (Address. (concat-arrs _data (entry-bytes entry)) _meta 0))
+
+
+     IMeta
+
+     (meta
+       [_]
+       _meta)
+
+
+     IObj
+
+     (withMeta
+       [_ new-meta]
+       (Address. _data new-meta _hash))
+
+
+     (hashCode
+       [_]
+       (if (zero? _hash)
+         (let [hc (hash (b/byte-seq _data))]
+           (set! _hash hc)
+           hc)
+         _hash))
+
+
+     Object
+
+     (toString
+       [this]
+       (address-str this)))
+
+   :cljs
+   (deftype Address
+     [_data
+      _meta
+      ^:unsynchronized-mutable _hash]
+
+     ISeqable
+
+     (-seq
+       [_]
+       (protocol-value-seq _data))
+
+
+     ICounted
+
+     (-count
+       [this]
+       (count (seq this)))
+
+
+     IEmptyableCollection
+
+     (-empty
+       [_]
+       (Address. (b/byte-array 0) _meta 0))
+
+
+     IEquiv
+
+     (-equiv
+       [this other]
+       (and (instance? Address other)
+            (b/bytes= (.-_data this) (.-_data ^Address other))))
+
+
+     ICollection
+
+     (-conj
+       [_ entry]
+       (Address. (concat-arrs _data (entry-bytes entry)) _meta 0))
+
+
+     IMeta
+
+     (-meta
+       [_]
+       _meta)
+
+
+     IWithMeta
+
+     (-with-meta
+       [_ new-meta]
+       (Address. _data new-meta _hash))
+
+
+     IHash
+
+     (-hash
+       [_]
+       (if (zero? _hash)
+         (let [hc (hash (b/byte-seq _data))]
+           (set! _hash hc)
+           hc)
+         _hash))
+
+
+     Object
+
+     (toString
+       [this]
+       (address-str this))))
 
 
 (defn- parse-entries

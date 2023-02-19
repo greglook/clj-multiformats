@@ -1,9 +1,11 @@
-/target
-/checkouts
-/.nrepl-port
-/.lein-*
 /.clj-kondo/.cache
-pom.xml
-pom.xml.asc
+/node_modules
+/target
+/out
+.cpcache
+.nrepl-port
+.cljs_node_repl
 *.jar
 *.class
+pom.xml
+pom.xml.asc

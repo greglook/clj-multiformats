@@ -21,14 +21,14 @@
 (def serialization-codes
   "General-purpose serialization formats."
   {:cbor     0x51    ; CBOR
-   ;:bson    0x??    ; Binary JSON
-   ;:ubjson  0x??    ; Universal Binary JSON
+   ;; :bson    0x??    ; Binary JSON
+   ;; :ubjson  0x??    ; Universal Binary JSON
    :protobuf 0x50    ; Protocol Buffers
-   ;:capnp   0x??    ; Cap-n-Proto
-   ;:flatbuf 0x??    ; FlatBuffers
+   ;; :capnp   0x??    ; Cap-n-Proto
+   ;; :flatbuf 0x??    ; FlatBuffers
    :rlp      0x60    ; Recursive Length Prefix
-   ;:msgpack 0x??    ; MessagePack
-   ;:binc    0x??    ; Binc
+   ;; :msgpack 0x??    ; MessagePack
+   ;; :binc    0x??    ; Binc
    :bencode  0x63    ; Bencode
    ,,,})
 
@@ -72,12 +72,11 @@
    ,,,})
 
 
-
 ;; ## Lookup Maps
 
 (def key->code
   "Map of codec keys to compact code values."
-  ; TODO: check for conflicts
+  ;; TODO: check for conflicts
   (merge
     miscellaneous-codes
     multiformat-codes

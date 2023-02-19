@@ -11,13 +11,19 @@
 
 
 (defprotocol Codec
-  "Convert multiaddr protocol values between 
+  "Convert multiaddr protocol values between
    human-readable string and machine-readable bytes"
-  (str->bytes [this value]
+
+  (str->bytes
+    [this value]
     "convert readable value to packed representation")
-  (bytes->str [this ^bytes data]
+
+  (bytes->str
+    [this ^bytes data]
     "convert machine representation slice to readable value")
-  (fixed-byte-length [this]
+
+  (fixed-byte-length
+    [this]
     "returns fixed length byte length of protocol (if exists),
      including 0 for no value protocols. Can also return `nil`
      if length is variable int encoded"))
@@ -67,7 +73,7 @@
   Codec
 
   (str->bytes
-    [this addr]
+    [_ addr]
     #?(:clj
        (try
          (-> ^String addr InetAddress/getByName .getAddress)
@@ -95,8 +101,9 @@
                (write-uint-bytes! piece dst piece-offset 4))))
          dst)))
 
+
   (bytes->str
-    [this data]
+    [_ data]
     (when (not= (alength ^bytes data) (* num-components bytes-per-component))
       (throw (ex-info (str "Incorrect bytes for IPv" version)
                       {:value (b/byte-seq data)
@@ -113,8 +120,9 @@
                        (big-endian-bytes->uint offset bytes-per-component)
                        (int->str radix))))))
 
+
   (fixed-byte-length
-    [this]
+    [_]
     (* num-components bytes-per-component)))
 
 
@@ -141,7 +149,7 @@
   Codec
 
   (str->bytes
-    [this value]
+    [_ value]
     (let [dst (b/byte-array num-bytes)
           n (str->int value)]
       (when (> (min-bytes-for-uint n) num-bytes)
@@ -150,16 +158,18 @@
       (write-uint-bytes! n dst 0 num-bytes)
       dst))
 
+
   (bytes->str
-    [this data]
+    [_ data]
     (when (not= (alength ^bytes data) num-bytes)
       (throw (ex-info "Incorrect number of bytes"
                       {:num-bytes-given (alength ^bytes data)
                        :expected-bytes num-bytes})))
     (-> data big-endian-bytes->uint (int->str radix)))
 
+
   (fixed-byte-length
-    [this]
+    [_]
     num-bytes))
 
 
@@ -169,25 +179,34 @@
 
 (def no-value-codec
   (reify Codec
-    (str->bytes [this value]
+    (str->bytes
+      [_ value]
       (when-not (nil? value)
         (throw (ex-info "Expected nil value for no value protocol"
                         {:value value})))
       (b/byte-array 0))
-    (bytes->str [this data]
+
+    (bytes->str
+      [_ data]
       (when (pos? (alength ^bytes data))
         (throw (ex-info "Expected 0 length array for no value protocol"
                         {:data (seq data)}))))
-    (fixed-byte-length [this] 0)))
+
+    (fixed-byte-length [_] 0)))
 
 
 (def utf8-codec
   (reify Codec
-    (str->bytes [this value]
+    (str->bytes
+      [_ value]
       #?(:clj  (-> ^String value (.getBytes "UTF8"))
          :cljs (-> ^string value crypt/stringToByteArray js/Uint8Array.)))
-    (bytes->str [this data]
+
+    (bytes->str
+      [_ data]
       #?(:clj  (String. ^bytes data "UTF8")
          :cljs (crypt/byteArrayToString data)))
-    (fixed-byte-length [this]
+
+    (fixed-byte-length
+      [_]
       nil)))

@@ -52,7 +52,6 @@
    :x11          0x1100})
 
 
-
 ;; ## Coding Functions
 
 (defn- read-header
@@ -99,53 +98,45 @@
     buffer))
 
 
+(defn- mhash-str
+  "Create a string representation of a multihash from a map of parameters."
+  [params]
+  (let [algo (if-let [algorithm (:algorithm params)]
+               (name algorithm)
+               (:code params))]
+    (str "hash:" algo \: (:digest params))))
+
 
 ;; ## Multihash Type
 
-#?(:bb
-   (defrecord Multihash
-     [_bytes _meta _hash]
-     Object
-     (toString
-       [this]
-       (str "hash:" (name (:algorithm this)) \: (:digest this))))
-   :default
+#?(:clj
    (deftype Multihash
      [^bytes _bytes
       _meta
       ^:unsynchronized-mutable _hash]
 
+     java.io.Serializable
+
      Object
 
      (toString
-       [this]
-       (let [params (decode-parameters _bytes)
-             algo (if-let [algorithm (:algorithm params)]
-                    (name algorithm)
-                    (:code params))]
-         (str "hash:" algo \: (:digest params))))
+       [_]
+       (mhash-str (decode-parameters _bytes)))
 
 
-     #?(:clj java.io.Serializable)
-
-
-     #?(:cljs IEquiv)
-
-     (#?(:clj equals, :cljs -equiv)
+     (equals
        [this that]
        (cond
          (identical? this that) true
 
          (instance? Multihash that)
-         (b/bytes= _bytes (#?(:clj ._bytes :cljs .-_bytes) ^Multihash that))
+         (b/bytes= _bytes (._bytes ^Multihash that))
 
          :else false))
 
 
-     #?(:cljs IHash)
-
-     (#?(:clj hashCode, :cljs -hash)
-       [this]
+     (hashCode
+       [_]
        (let [hc _hash]
          (if (zero? hc)
            (let [params (decode-parameters _bytes)
@@ -155,15 +146,15 @@
            hc)))
 
 
-     #?(:clj Comparable, :cljs IComparable)
+     Comparable
 
-     (#?(:clj compareTo, :cljs -compare)
+     (compareTo
        [this that]
        (cond
          (identical? this that) 0
 
          (instance? Multihash that)
-         (b/compare _bytes (#?(:clj ._bytes :cljs .-_bytes) ^Multihash that))
+         (b/compare _bytes (._bytes ^Multihash that))
 
          :else
          (throw (ex-info
@@ -174,13 +165,13 @@
 
      ILookup
 
-     (#?(:clj valAt, :cljs -lookup)
+     (valAt
        [this k]
-       (#?(:clj .valAt, :cljs -lookup) this k nil))
+       (.valAt this k nil))
 
 
-     (#?(:clj valAt, :cljs -lookup)
-       [this k not-found]
+     (valAt
+       [_ k not-found]
        (case k
          :length (alength _bytes)
          :code (first (read-header _bytes))
@@ -194,20 +185,118 @@
 
      IMeta
 
-     (#?(:clj meta, :cljs -meta)
-       [this]
+     (meta
+       [_]
        _meta)
 
 
-     #?(:clj IObj, :cljs IWithMeta)
+     IObj
 
-     (#?(:clj withMeta, :cljs -with-meta)
-       [this meta-map]
-       (Multihash. _bytes meta-map _hash))))
+     (withMeta
+       [_ meta-map]
+       (Multihash. _bytes meta-map _hash)))
+
+   :cljs
+   (deftype Multihash
+     [_bytes
+      _meta
+      ^:unsynchronized-mutable _hash]
+
+     Object
+
+     (toString
+       [_]
+       (mhash-str (decode-parameters _bytes)))
+
+
+     IEquiv
+
+     (-equiv
+       [this that]
+       (cond
+         (identical? this that) true
+
+         (instance? Multihash that)
+         (b/bytes= _bytes (.-_bytes ^Multihash that))
+
+         :else false))
+
+
+     IHash
+
+     (-hash
+       [_]
+       (let [hc _hash]
+         (if (zero? hc)
+           (let [params (decode-parameters _bytes)
+                 hc (hash [::multihash (:code params) (:digest params)])]
+             (set! _hash hc)
+             hc)
+           hc)))
+
+
+     IComparable
+
+     (-compare
+       [this that]
+       (cond
+         (identical? this that) 0
+
+         (instance? Multihash that)
+         (b/compare _bytes (.-_bytes ^Multihash that))
+
+         :else
+         (throw (ex-info
+                  (str "Cannot compare multihash value to " (type that))
+                  {:this this
+                   :that that}))))
+
+
+     ILookup
+
+     (-lookup
+       [this k]
+       (-lookup this k nil))
+
+
+     (-lookup
+       [_ k not-found]
+       (case k
+         :length (alength _bytes)
+         :code (first (read-header _bytes))
+         :algorithm (let [[code] (read-header _bytes)]
+                      (find-algorithm code))
+         :bits (let [[_ length] (read-header _bytes)]
+                 (* length 8))
+         :digest (:digest (decode-parameters _bytes))
+         not-found))
+
+
+     IMeta
+
+     (-meta
+       [_]
+       _meta)
+
+
+     IWithMeta
+
+     (-with-meta
+       [_ meta-map]
+       (Multihash. _bytes meta-map _hash)))
+
+   :bb
+   (defrecord Multihash
+     [_bytes]
+
+     Object
+
+     (toString
+       [this]
+       (mhash-str this))))
 
 
 (alter-meta! #'->Multihash assoc :private true)
-
 
 
 ;; ## Constructors
@@ -269,14 +358,13 @@
        :default (->Multihash (encode-bytes code digest-bytes) nil 0))))
 
 
-
 ;; ## Serialization
 
 (defn- inner-bytes
   "Retrieve the inner encoded bytes from a multihash value."
   ^bytes
   [^Multihash mhash]
-  (#?(:clj ._bytes :cljs .-_bytes) mhash))
+  (#?(:cljs .-_bytes, :default ._bytes) mhash))
 
 
 (defn read-bytes
@@ -321,7 +409,6 @@
   "Parse a hex string into a multihash."
   [string]
   (decode (hex/parse string)))
-
 
 
 ;; ## Digest Constructors

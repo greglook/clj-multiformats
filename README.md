@@ -46,20 +46,20 @@ the remainder of the text.
 => (require '[alphabase.bytes :as b])
 => (require '[multiformats.base :as mbase])
 
-; lookup supported base encodings
+;; lookup supported base encodings
 => (take 8 (keys mbase/bases))
 (:base16 :base32hex :base64pad :base64urlpad :base2 :base32 :BASE16 :base64)
 
 => (def data (b/random-bytes 16))
 
-; use format to convert byte data into an encoded string
+;; use format to convert byte data into an encoded string
 => (mbase/format :base16 data)
 "f86f0a02d004cf7e5ff8746a6307919f4"
 
 => (mbase/format :BASE32HEX data)
 "VGROA0B809JRUBVS78QJ30U8PUG"
 
-; use parse to convert encoded strings back into bytes
+;; use parse to convert encoded strings back into bytes
 => (b/bytes= data (mbase/parse *1))
 true
 
@@ -76,12 +76,12 @@ functions, addressing size and encoding considerations.
 ```clojure
 => (require '[multiformats.hash :as mhash])
 
-; manual hash construction
+;; manual hash construction
 => (def mh (mhash/create :sha1 "2aae6c35c94fcfb415dbe95f408b9ce91ee846ed"))
 => mh
 #<multiformats.hash.Multihash@318a6d43 hash:sha1:2aae6c35c94fcfb415dbe95f408b9ce91ee846ed>
 
-; hash properties
+;; hash properties
 => (:length mh)
 22
 => (:code mh)
@@ -93,7 +93,7 @@ functions, addressing size and encoding considerations.
 => (:digest mh)
 "2aae6c35c94fcfb415dbe95f408b9ce91ee846ed"
 
-; encode to/from bytes
+;; encode to/from bytes
 => (mhash/encode mh)
 #bin "ERQqrmw1yU/PtBXb6V9Ai5zpHuhG7Q=="
 => (mhash/decode *1)
@@ -101,7 +101,7 @@ functions, addressing size and encoding considerations.
 => (= mh *1)
 true
 
-; render as fully encoded hex
+;; render as fully encoded hex
 => (mhash/hex mh)
 "11142aae6c35c94fcfb415dbe95f408b9ce91ee846ed"
 ```
@@ -110,18 +110,18 @@ For convenience, several hashing functions are provided for direct digest
 construction. These produce multihashes and may be used to test validity.
 
 ```clojure
-; available functions
+;; available functions
 => mhash/functions
 {:md5 #<Fn@634b0a25 multiformats.hash/md5>,
  :sha1 #<Fn@42c50751 multiformats.hash/sha1>,
  :sha2-256 #<Fn@736fb22c multiformats.hash/sha2_256>,
  :sha2-512 #<Fn@25703362 multiformats.hash/sha2_512>}
 
-; produce a new hash
+;; produce a new hash
 => (mhash/sha2-256 "hello world")
 #<multiformats.hash.Multihash@1fda7e5a hash:sha2-256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9>
 
-; test for correctness
+;; test for correctness
 => (mhash/test *1 "hello world")
 true
 => (mhash/test *2 "foo bar baz")
@@ -137,19 +137,19 @@ may either be a varint (in a byte string) or a character (in a text string).
 ```clojure
 => (require '[multiformats.codec :as mcodec])
 
-; resolve a code or key to a keyword name
+;; resolve a code or key to a keyword name
 => (mcodec/resolve-key :git-raw)
 :git-raw
 => (mcodec/resolve-key 0x51)
 :cbor
 
-; resolve a code or key to a numeric code
+;; resolve a code or key to a numeric code
 => (mcodec/resolve-code :cbor)
 81
 => (mcodec/resolve-code 0xb0)
 176
 
-; register a new code
+;; register a new code
 => (mcodec/register! :foo-format 0x0abc)
 nil
 ```
@@ -164,12 +164,12 @@ into a string.
 ```clojure
 => (require '[multiformats.cid :as cid])
 
-; manual cid construction
+;; manual cid construction
 => (def cid (cid/create :cbor (mhash/create :sha1 "2aae6c35c94fcfb415dbe95f408b9ce91ee846ed")))
 => cid
 #<multiformats.cid.ContentID@48826a03 cidv1:cbor:sha1:2aae6c35c94fcfb415dbe95f408b9ce91ee846ed>
 
-; cid properties
+;; cid properties
 => (:length cid)
 24
 => (:version cid)
@@ -183,7 +183,7 @@ into a string.
 => (:hash cid)
 #<multiformats.hash.Multihash@43a28cdb hash:sha1:2aae6c35c94fcfb415dbe95f408b9ce91ee846ed>
 
-; encode to/from bytes
+;; encode to/from bytes
 => (cid/encode cid)
 #bin "AVERFCqubDXJT8+0FdvpX0CLnOke6Ebt"
 => (cid/decode *1)
@@ -191,7 +191,7 @@ into a string.
 => (= cid *1)
 true
 
-; render as strings
+;; render as strings
 => (cid/format cid)
 "bafircfbkvzwdlskpz62blw7jl5aixhhjd3uen3i"
 => (cid/format :base58btc cid)
@@ -199,7 +199,7 @@ true
 => (= cid (cid/parse *1))
 true
 
-; inspection
+;; inspection
 => (cid/inspect *2)
 {:base :base64,
  :prefix "m",
@@ -218,14 +218,14 @@ specifies network addresses in a protocol-agnostic, composable way.
 ```clojure
 => (require '[multiformats.address :as addr])
 
-; There's no place like it...
+;; There's no place like it...
 => (addr/create [:ip4 "127.0.0.1"])
 #<multiformats.address.Address@6240b7d0 /ip4/127.0.0.1>
 
 => (str *1)
 "/ip4/127.0.0.1"
 
-; Addresses can be treated as sequences:
+;; Addresses can be treated as sequences:
 => (conj *2 [:tcp "80"])
 #<multiformats.address.Address@543f04b8 /ip4/127.0.0.1/tcp/80>
 

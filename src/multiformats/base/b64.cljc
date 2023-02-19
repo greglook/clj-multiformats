@@ -1,8 +1,8 @@
 (ns multiformats.base.b64
   "Base64 implementation from RFC 4648."
   (:require
-    [clojure.string :as str]
-    #?(:cljs [goog.crypt.base64 :as gcb64]))
+    #?(:clj [clojure.string :as str]
+       :cljs [goog.crypt.base64 :as gcb64]))
   #?(:clj
      (:import
        (org.apache.commons.codec.binary
@@ -31,10 +31,15 @@
 
            :else encoded))
        :cljs
-       (let [encoded (gcb64/encodeByteArray data url?)]
-         (if padding?
-           (str/replace encoded "." "=")
-           (str/replace encoded #"[.=]+$" ""))))))
+       (gcb64/encodeByteArray
+         data
+         (if-not url?
+           (if padding?
+             (.-DEFAULT gcb64/Alphabet)
+             (.-NO_PADDING gcb64/Alphabet))
+           (if padding?
+             (.-WEBSAFE gcb64/Alphabet)
+             (.-WEBSAFE_NO_PADDING gcb64/Alphabet)))))))
 
 
 (defn parse

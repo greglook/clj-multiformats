@@ -56,115 +56,204 @@
     buffer))
 
 
+(defn- cid-str
+  "Createa string representation of the CID parameters."
+  [params]
+  (let [codec (:codec params)
+        codec-name (if (keyword? codec)
+                     (name codec)
+                     (or codec "?"))
+        algorithm (get-in params [:hash :algorithm])
+        algo-name (if (keyword? algorithm)
+                    (name algorithm)
+                    (or algorithm "?"))]
+    (str "cidv" (:version params)
+         ":" codec-name ":" algo-name ":"
+         (get-in params [:hash :digest] "?"))))
+
 
 ;; ## ContentID Type
 
-(deftype ContentID
-  [^bytes _bytes
-   _meta
-   ^:unsynchronized-mutable _hash]
+#?(:clj
+   (deftype ContentID
+     [^bytes _bytes
+      _meta
+      ^:unsynchronized-mutable _hash]
 
-  Object
+     Object
 
-  (toString
-    [this]
-    (let [params (decode-parameters _bytes)
-          codec (:codec params)
-          codec-name (if (keyword? codec)
-                       (name codec)
-                       (or codec "?"))
-          algorithm (get-in params [:hash :algorithm])
-          algo-name (if (keyword? algorithm)
-                      (name algorithm)
-                      (or algorithm "?"))]
-      (str "cidv" (:version params)
-           ":" codec-name ":" algo-name ":"
-           (get-in params [:hash :digest] "?"))))
+     (toString
+       [_]
+       (cid-str (decode-parameters _bytes)))
 
 
-  #?(:clj java.io.Serializable)
+     java.io.Serializable
+
+     (equals
+       [this that]
+       (cond
+         (identical? this that) true
+
+         (instance? ContentID that)
+         (b/bytes= _bytes (._bytes ^ContentID that))
+
+         :else false))
 
 
-  #?(:cljs IEquiv)
-
-  (#?(:clj equals, :cljs -equiv)
-    [this that]
-    (cond
-      (identical? this that) true
-
-      (instance? ContentID that)
-      (b/bytes= _bytes (#?(:clj ._bytes, :cljs .-_bytes) ^ContentID that))
-
-      :else false))
+     (hashCode
+       [_]
+       (let [hc _hash]
+         (if (zero? hc)
+           (let [params (decode-parameters _bytes)
+                 hc (hash [::cid (:version params) (:codec params) (:hash params)])]
+             (set! _hash hc)
+             hc)
+           hc)))
 
 
-  #?(:cljs IHash)
+     Comparable
 
-  (#?(:clj hashCode, :cljs -hash)
-    [this]
-    (let [hc _hash]
-      (if (zero? hc)
-        (let [params (decode-parameters _bytes)
-              hc (hash [::cid (:version params) (:codec params) (:hash params)])]
-          (set! _hash hc)
-          hc)
-        hc)))
+     (compareTo
+       [this that]
+       (cond
+         (identical? this that) 0
 
+         (instance? ContentID that)
+         (b/compare _bytes (._bytes ^ContentID that))
 
-  #?(:clj Comparable, :cljs IComparable)
-
-  (#?(:clj compareTo, :cljs -compare)
-    [this that]
-    (cond
-      (identical? this that) 0
-
-      (instance? ContentID that)
-      (b/compare _bytes (#?(:clj ._bytes :cljs .-_bytes) ^ContentID that))
-
-      :else
-      (throw (ex-info
-               (str "Cannot compare CID value to " (type that))
-               {:this this
-                :that that}))))
+         :else
+         (throw (ex-info
+                  (str "Cannot compare CID value to " (type that))
+                  {:this this
+                   :that that}))))
 
 
-  ILookup
+     ILookup
 
-  (#?(:clj valAt, :cljs -lookup)
-    [this k]
-    (#?(:clj .valAt, :cljs -lookup) this k nil))
-
-
-  (#?(:clj valAt, :cljs -lookup)
-    [this k not-found]
-    (let [[version codec hlength] (read-header _bytes)]
-      (case k
-        :length (if (zero? version)
-                  (- (alength _bytes) hlength)
-                  (alength _bytes))
-        :version version
-        :codec (mcodec/resolve-key codec)
-        :code codec
-        :hash (first (mhash/read-bytes _bytes hlength))
-        not-found)))
+     (valAt
+       [this k]
+       (.valAt this k nil))
 
 
-  IMeta
+     (valAt
+       [_ k not-found]
+       (let [[version codec hlength] (read-header _bytes)]
+         (case k
+           :length (if (zero? version)
+                     (- (alength _bytes) hlength)
+                     (alength _bytes))
+           :version version
+           :codec (mcodec/resolve-key codec)
+           :code codec
+           :hash (first (mhash/read-bytes _bytes hlength))
+           not-found)))
 
-  (#?(:clj meta, :cljs -meta)
-    [this]
-    _meta)
+
+     IMeta
+
+     (meta
+       [_]
+       _meta)
 
 
-  #?(:clj IObj, :cljs IWithMeta)
+     IObj
 
-  (#?(:clj withMeta, :cljs -with-meta)
-    [this meta-map]
-    (ContentID. _bytes meta-map _hash)))
+     (withMeta
+       [_ meta-map]
+       (ContentID. _bytes meta-map _hash)))
+
+   :cljs
+   (deftype ContentID
+     [_bytes
+      _meta
+      ^:unsynchronized-mutable _hash]
+
+     Object
+
+     (toString
+       [_]
+       (cid-str (decode-parameters _bytes)))
+
+
+     IEquiv
+
+     (-equiv
+       [this that]
+       (cond
+         (identical? this that) true
+
+         (instance? ContentID that)
+         (b/bytes= _bytes (.-_bytes ^ContentID that))
+
+         :else false))
+
+
+     IHash
+
+     (-hash
+       [_]
+       (let [hc _hash]
+         (if (zero? hc)
+           (let [params (decode-parameters _bytes)
+                 hc (hash [::cid (:version params) (:codec params) (:hash params)])]
+             (set! _hash hc)
+             hc)
+           hc)))
+
+
+     IComparable
+
+     (-compare
+       [this that]
+       (cond
+         (identical? this that) 0
+
+         (instance? ContentID that)
+         (b/compare _bytes (.-_bytes ^ContentID that))
+
+         :else
+         (throw (ex-info
+                  (str "Cannot compare CID value to " (type that))
+                  {:this this
+                   :that that}))))
+
+
+     ILookup
+
+     (-lookup
+       [this k]
+       (-lookup this k nil))
+
+
+     (-lookup
+       [_ k not-found]
+       (let [[version codec hlength] (read-header _bytes)]
+         (case k
+           :length (if (zero? version)
+                     (- (alength _bytes) hlength)
+                     (alength _bytes))
+           :version version
+           :codec (mcodec/resolve-key codec)
+           :code codec
+           :hash (first (mhash/read-bytes _bytes hlength))
+           not-found)))
+
+
+     IMeta
+
+     (-meta
+       [_]
+       _meta)
+
+
+     IWithMeta
+
+     (-with-meta
+       [_ meta-map]
+       (ContentID. _bytes meta-map _hash))))
 
 
 (alter-meta! #'->ContentID assoc :private true)
-
 
 
 ;; ## Construction
@@ -181,7 +270,6 @@
         code (mcodec/resolve-code codec)
         encoded (encode-bytes version code mhash)]
     (->ContentID encoded nil 0)))
-
 
 
 ;; ## Binary Serialization
@@ -237,16 +325,15 @@
   (if (and (= 34 (alength data))
            (= 0x12 (b/get-byte data 0))
            (= 0x20 (b/get-byte data 1)))
-    ; v0 CID (bare multihash)
+    ;; v0 CID (bare multihash)
     (let [mhash (mhash/decode data)
-          ; This is a bit of a departure from the IPLD/CID spec, but using the
-          ; raw codec for 'unknown' seems generally more sensible.
+          ;; This is a bit of a departure from the IPLD/CID spec, but using the
+          ;; raw codec for 'unknown' seems generally more sensible.
           code (mcodec/resolve-code :raw)
           encoded (encode-bytes 0 code mhash)]
       (->ContentID encoded nil 0))
-    ; v1+ CID
+    ;; v1+ CID
     (first (read-bytes data 0))))
-
 
 
 ;; ## String Serialization

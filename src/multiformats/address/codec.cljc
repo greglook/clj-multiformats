@@ -4,7 +4,7 @@
     [alphabase.bytes :as b]
     #?@(:cljs [[clojure.string :as str]
                [goog.crypt :as crypt]
-               [goog.net.IpAddress :as ip-address]]))
+               [goog.net.ipaddress :as ipaddress]]))
   #?(:clj
      (:import
        java.net.InetAddress)))
@@ -81,7 +81,7 @@
              dst (b/byte-array total-bytes)
              num-pieces (/ total-bytes 4)
              ;; goog.math.Integer is array of int32 under the hood
-             ip (ip-address/fromString addr)]
+             ip (ipaddress/IpAddress.fromString addr)]
          (when (or (nil? ip) (not= version (.getVersion ip)))
            (throw (ex-info (str "Value doesn't conform to IPv" version)
                            {:value addr :ip-version version})))

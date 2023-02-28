@@ -7,5 +7,6 @@
 .cljs_node_repl
 *.jar
 *.class
+*.pom
+*.pom.asc
 pom.xml
-pom.xml.asc

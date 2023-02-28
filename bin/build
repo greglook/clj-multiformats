@@ -12,14 +12,15 @@ elif [[ $1 = hiera ]]; then
     exec clojure -X:hiera "$@"
 elif [[ $1 = deploy ]]; then
     shift
-    # TODO: read from a file?
+    if [[ -z $CLOJARS_USERNAME && -z $CLOJARS_PASSWORD && -f $HOME/.clojure/clojars.env ]]; then
+        source $HOME/.clojure/clojars.env
+    fi
     if [[ -z $CLOJARS_USERNAME ]]; then
         read -p "Clojars username: " CLOJARS_USERNAME
         if [[ -z $CLOJARS_USERNAME ]]; then
             echo "No username available, aborting" >&2
             exit 1
         fi
-        export CLOJARS_USERNAME
     fi
     if [[ -z $CLOJARS_PASSWORD ]]; then
         read -p "Clojars deploy token: " CLOJARS_PASSWORD
@@ -27,8 +28,8 @@ elif [[ $1 = deploy ]]; then
             echo "No deploy token available, aborting" >&2
             exit 1
         fi
-        export CLOJARS_PASSWORD
     fi
+    export CLOJARS_USERNAME CLOJARS_PASSWORD
     exec clojure -T:build deploy "$@"
 else
     exec clojure -T:build "$@"

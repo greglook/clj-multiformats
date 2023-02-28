@@ -74,5 +74,6 @@
       (assoc opts
              :installer :remote
              :sign-releases? true
+             :sign-key-id "327D725B7F3AA97264F3643A2C2FDC653E12F5F0"
              :pom-file pom-file
              :artifact jar-file))))

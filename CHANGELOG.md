@@ -11,6 +11,23 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ...
 
 
+## [0.3.103] - 2023-02-27
+
+### Changed
+- Switch from Leiningen to tools.deps and related build infrastructure.
+- Unroll type definitions to make them easier to understand on each platform.
+- Updated style and lint compliance.
+
+### Fixed
+- Fix Clojurescript IpAddress refrence in address code.
+  [#3](https://github.com/greglook/clj-multiformats/issues/3)
+  [PR#4](https://github.com/greglook/clj-multiformats/pull/4)
+
+### Added
+- Multihashes are usable in Babashka.
+  [PR#2](https://github.com/greglook/clj-multiformats/pull/2)
+
+
 ## [0.2.1] - 2020-01-05
 
 ### Changed
@@ -23,7 +40,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Added hex-parsing utility method for multihashes.
 - Implemented [multiaddr](https://github.com/multiformats/multiaddr) support.
-  [#1](https://github.com/greglook/clj-multiformats/pull/1)
+  [PR#1](https://github.com/greglook/clj-multiformats/pull/1)
 
 
 ## [0.1.1] - 2019-01-20
@@ -36,7 +53,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 Initial project release.
 
-[Unreleased]: https://github.com/greglook/clj-multiformats/compare/0.2.1...HEAD
+[Unreleased]: https://github.com/greglook/clj-multiformats/compare/0.3.103...HEAD
+[0.3.103]: https://github.com/greglook/clj-multiformats/compare/0.2.1...0.3.103
 [0.2.1]: https://github.com/greglook/clj-multiformats/compare/0.2.0...0.2.1
 [0.2.0]: https://github.com/greglook/clj-multiformats/compare/0.1.1...0.2.0
 [0.1.1]: https://github.com/greglook/clj-multiformats/compare/0.1.0...0.1.1

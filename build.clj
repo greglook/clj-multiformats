@@ -8,9 +8,9 @@
 
 
 (def lib-name 'mvxcvi/multiformats)
-(def version (str "0.2." (b/git-count-revs nil)))
+(def version (str "0.3." (b/git-count-revs nil)))
 
-(def src-dir "src/clojure")
+(def src-dir "src")
 (def class-dir "target/classes")
 (def jar-file (format "target/%s-%s.jar" (name lib-name) version))
 

@@ -109,7 +109,17 @@
 
 ;; ## Multihash Type
 
-#?(:clj
+#?(:bb
+   (defrecord Multihash
+     [_bytes]
+
+     Object
+
+     (toString
+       [this]
+       (mhash-str this)))
+
+   :clj
    (deftype Multihash
      [^bytes _bytes
       _meta
@@ -283,17 +293,7 @@
 
      (-with-meta
        [_ meta-map]
-       (Multihash. _bytes meta-map _hash)))
-
-   :bb
-   (defrecord Multihash
-     [_bytes]
-
-     Object
-
-     (toString
-       [this]
-       (mhash-str this))))
+       (Multihash. _bytes meta-map _hash))))
 
 
 (alter-meta! #'->Multihash assoc :private true)

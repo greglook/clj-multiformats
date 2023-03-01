@@ -139,6 +139,7 @@ workflows:
       - lint
       - test-clj
       - test-cljs
+      - test-bb
       - coverage:
           requires:
             - test-clj

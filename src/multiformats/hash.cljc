@@ -345,17 +345,16 @@
   numeric code) and digest byte array (or hex string)."
   [algorithm digest]
   (let [code (resolve-code algorithm)
-        digest-bytes (resolve-digest digest)]
-    #?(:bb (let [bytes (encode-bytes code digest-bytes)
-                 bc (count bytes)
-                 hex (hex/format digest-bytes)]
-             (-> (->Multihash bytes nil 0)
-                 (assoc :length bc)
-                 (assoc :digest hex)
-                 (assoc :code code)
-                 (assoc :algorithm (find-algorithm code))
-                 (assoc :bits (* 8 (count digest-bytes)))))
-       :default (->Multihash (encode-bytes code digest-bytes) nil 0))))
+        digest-bytes (resolve-digest digest)
+        encoded (encode-bytes code digest-bytes)
+        mhash (->Multihash encoded nil 0)]
+    #?(:bb (assoc mhash
+                  :length (count encoded)
+                  :digest (hex/format digest-bytes)
+                  :code code
+                  :algorithm (find-algorithm code)
+                  :bits (* 8 (count digest-bytes)))
+       :default mhash)))
 
 
 ;; ## Serialization

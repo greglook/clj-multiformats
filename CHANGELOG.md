@@ -11,6 +11,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ...
 
 
+## [0.3.107] - 2023-03-06
+
+### Fixed
+- Fix babashka compatibility issue with multihashes.
+  [#5](https://github.com/greglook/clj-multiformats/issues/5)
+  [PR#6](https://github.com/greglook/clj-multiformats/pull/6)
+
+
 ## [0.3.103] - 2023-02-27
 
 ### Changed
@@ -53,7 +61,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 Initial project release.
 
-[Unreleased]: https://github.com/greglook/clj-multiformats/compare/0.3.103...HEAD
+
+[Unreleased]: https://github.com/greglook/clj-multiformats/compare/0.3.107...HEAD
+[0.3.107]: https://github.com/greglook/clj-multiformats/compare/0.3.103...0.3.107
 [0.3.103]: https://github.com/greglook/clj-multiformats/compare/0.2.1...0.3.103
 [0.2.1]: https://github.com/greglook/clj-multiformats/compare/0.2.0...0.2.1
 [0.2.0]: https://github.com/greglook/clj-multiformats/compare/0.1.1...0.2.0

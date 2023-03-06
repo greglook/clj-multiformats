@@ -110,7 +110,7 @@ jobs:
       - save_cache:
           paths:
             - ~/.m2
-          key: v1-coverage-{{ checksum "project.clj" }}
+          key: v1-coverage-{{ checksum "deps.edn" }}
       - store_artifacts:
           path: target/coverage
           destination: coverage

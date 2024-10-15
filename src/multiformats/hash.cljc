@@ -111,7 +111,7 @@
 
 #?(:bb
    (defrecord Multihash
-     [_bytes]
+     [_bytes _meta _hash]
 
      Object
 

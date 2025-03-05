@@ -1,8 +1,7 @@
 (ns multiformats.address-test
   (:require
     [alphabase.bytes :as b]
-    #?(:clj [clojure.test :refer [deftest are]]
-       :cljs [cljs.test :refer-macros [deftest are]])
+    [clojure.test :refer [deftest are]]
     [multiformats.address :as address]))
 
 

@@ -7,13 +7,13 @@
   (:refer-clojure :exclude [test])
   (:require
     [alphabase.bytes :as b]
+    [alphabase.base16 :as hex]
     #?@(:cljs
         [[goog.crypt :as crypt]
          [goog.crypt.Md5]
          [goog.crypt.Sha1]
          [goog.crypt.Sha256]
          [goog.crypt.Sha512]])
-    [multiformats.base.b16 :as hex]
     [multiformats.varint :as varint])
   #?(:cljs
      (:require-macros
@@ -74,7 +74,7 @@
   "Read the header and digest from the encoded bytes."
   [^bytes data]
   (let [[code length offset] (read-header data)
-        digest (hex/format-slice data offset (- (alength data) offset))]
+        digest (subs (hex/encode data) (* 2 offset))]
     {:code code
      :algorithm (find-algorithm code)
      :length length
@@ -332,7 +332,7 @@
     digest
 
     (string? digest)
-    (hex/parse digest)
+    (hex/decode digest)
 
     :else
     (throw (ex-info
@@ -350,7 +350,7 @@
         mhash (->Multihash encoded nil 0)]
     #?(:bb (assoc mhash
                   :length (count encoded)
-                  :digest (hex/format digest-bytes)
+                  :digest (hex/encode digest-bytes)
                   :code code
                   :algorithm (find-algorithm code)
                   :bits (* 8 (count digest-bytes)))
@@ -401,13 +401,13 @@
 (defn hex
   "Format a multihash as a hex string."
   [mhash]
-  (hex/format (inner-bytes mhash)))
+  (hex/encode (inner-bytes mhash)))
 
 
 (defn parse
   "Parse a hex string into a multihash."
   [string]
-  (decode (hex/parse string)))
+  (decode (hex/decode string)))
 
 
 ;; ## Digest Constructors

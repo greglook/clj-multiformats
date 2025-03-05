@@ -6,10 +6,10 @@
   https://github.com/ipld/cid"
   (:refer-clojure :exclude [format])
   (:require
+    [alphabase.base58 :as b58]
     [alphabase.bytes :as b]
     [clojure.string :as str]
     [multiformats.base :as mbase]
-    [multiformats.base.b58 :as b58]
     [multiformats.codec :as mcodec]
     [multiformats.hash :as mhash]
     [multiformats.varint :as varint])
@@ -357,7 +357,7 @@
   "Parse a content identifier from a base-encoded string."
   [string]
   (if (and (= 46 (count string)) (str/starts-with? string "Qm"))
-    (decode (b58/parse-btc string))
+    (decode (b58/decode string))
     (decode (mbase/parse string))))
 
 

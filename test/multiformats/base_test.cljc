@@ -4,27 +4,9 @@
   - https://github.com/eth-r/multibase/tree/master/tests"
   (:require
     [alphabase.bytes :as b :refer [bytes=]]
-    #?(:clj [clojure.test :refer [deftest testing is]]
-       :cljs [cljs.test :refer-macros [deftest testing is]])
+    [clojure.test :refer [deftest testing is]]
     #?(:cljs [goog.crypt :as crypt])
     [multiformats.base :as mbase]))
-
-
-(deftest base-setup
-  #?(:clj
-     (testing "install-base"
-       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"registered with invalid key"
-             (#'mbase/install-base {} {:key 123})))
-       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"has no assigned prefix code"
-             (#'mbase/install-base {} {:key :foo})))
-       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"is already registered"
-             (#'mbase/install-base {:base1 {}} {:key :base1})))
-       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"does not specify a formatter function"
-             (#'mbase/install-base {} {:key :base1})))
-       (is (thrown-with-msg? clojure.lang.ExceptionInfo #"does not specify a parser function"
-             (#'mbase/install-base {} {:key :base1, :formatter identity}))))
-     :cljs
-     (is true "appease kaocha")))
 
 
 (deftest arg-validation

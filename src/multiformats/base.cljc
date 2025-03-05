@@ -6,16 +6,13 @@
   https://github.com/multiformats/multibase"
   (:refer-clojure :exclude [bases format])
   (:require
-    [clojure.string :as str]
-    [multiformats.base.b16 :as b16]
-    [multiformats.base.b2 :as b2]
-    [multiformats.base.b32 :as b32]
-    [multiformats.base.b58 :as b58]
-    [multiformats.base.b64 :as b64]
-    [multiformats.base.b8 :as b8])
-  #?(:cljs
-     (:require-macros
-       [multiformats.base :refer [defbase]])))
+    [alphabase.base16 :as b16]
+    [alphabase.base2 :as b2]
+    [alphabase.base32 :as b32]
+    [alphabase.base58 :as b58]
+    [alphabase.base64 :as b64]
+    [alphabase.base8 :as b8]
+    [clojure.string :as str]))
 
 
 (def codes
@@ -49,179 +46,123 @@
 
 ;; ## Base Encodings
 
-(defmacro ^:private defbase
-  "Define a new base map in a var."
-  [base-sym & {:as params}]
-  `(def ~(vary-meta base-sym assoc :private true)
-     (assoc ~params :key ~(keyword base-sym))))
+(def ^:private binary-encodings
+  "Binary (b2) and Octal (b8) encodings."
+  [{:key :base2
+    :formatter b2/encode
+    :parser b2/decode}
+   {:key :base8
+    :formatter b8/encode
+    :parser b8/decode}])
 
 
-;; Appease clj-kondo
-(declare base2
-         base8
-         base16
-         BASE16
-         base32
-         BASE32
-         base32pad
-         BASE32PAD
-         base32hex
-         BASE32HEX
-         base32hexpad
-         BASE32HEXPAD
-         base58btc
-         base64
-         base64pad
-         base64url
-         base64urlpad)
+(def ^:private hex-encodings
+  "Hexadecimal (b16) encodings."
+  [{:key :base16
+    :formatter (comp str/lower-case b16/encode)
+    :parser b16/decode}
+   {:key :BASE16
+    :formatter b16/encode
+    :parser b16/decode}])
 
 
-;; ### Binary
+(def ^:private b32-encodings
+  "Base32 encodings."
+  (letfn [(parse-base32
+            [string]
+            (b32/decode string false))
 
-(defbase base2
-  :formatter b2/format
-  :parser b2/parse)
-
-
-;; ### Octal
-
-(defbase base8
-  :formatter b8/format
-  :parser b8/parse)
-
-
-;; ### Hexadecimal
-
-(defbase base16
-  :formatter b16/format
-  :parser b16/parse)
-
-
-(defbase BASE16
-  :formatter (comp str/upper-case b16/format)
-  :parser b16/parse)
-
-
-;; ### Base32 (RFC 4648)
-
-(defbase base32
-  :formatter (b32/formatter false true false)
-  :parser (b32/parser false))
-
-
-(defbase BASE32
-  :formatter (b32/formatter false false false)
-  :parser (b32/parser false))
-
-
-(defbase base32pad
-  :formatter (b32/formatter false true true)
-  :parser (b32/parser false))
-
-
-(defbase BASE32PAD
-  :formatter (b32/formatter false false true)
-  :parser (b32/parser false))
-
-
-(defbase base32hex
-  :formatter (b32/formatter true true false)
-  :parser (b32/parser true))
+          (parse-base32hex
+            [string]
+            (b32/decode string true))]
+    [{:key :base32
+      :formatter (fn format-base32
+                   [data]
+                   (str/lower-case (b32/encode data false false)))
+      :parser parse-base32}
+     {:key :BASE32
+      :formatter (fn format-BASE32
+                   [data]
+                   (b32/encode data false false))
+      :parser parse-base32}
+     {:key :base32pad
+      :formatter (fn format-base32pad
+                   [data]
+                   (str/lower-case (b32/encode data false true)))
+      :parser parse-base32}
+     {:key :BASE32PAD
+      :formatter (fn format-BASE32PAD
+                   [data]
+                   (b32/encode data false true))
+      :parser parse-base32}
+     {:key :base32hex
+      :formatter (fn format-base32hex
+                   [data]
+                   (str/lower-case (b32/encode data true false)))
+      :parser parse-base32hex}
+     {:key :BASE32HEX
+      :formatter (fn format-BASE32HEX
+                   [data]
+                   (b32/encode data true false))
+      :parser parse-base32hex}
+     {:key :base32hexpad
+      :formatter (fn format-base32hexpad
+                   [data]
+                   (str/lower-case (b32/encode data true true)))
+      :parser parse-base32hex}
+     {:key :BASE32HEXPAD
+      :formatter (fn format-BASE32HEXPAD
+                   [data]
+                   (b32/encode data true true))
+      :parser parse-base32hex}]))
 
 
-(defbase BASE32HEX
-  :formatter (b32/formatter true false false)
-  :parser (b32/parser true))
+(def ^:private b58-encodings
+  "Base58 encodings."
+  [{:key :base58btc
+    :formatter b58/encode
+    :parser b58/decode}])
 
 
-(defbase base32hexpad
-  :formatter (b32/formatter true true true)
-  :parser (b32/parser true))
-
-
-(defbase BASE32HEXPAD
-  :formatter (b32/formatter true false true)
-  :parser (b32/parser true))
-
-
-;; ### Base58
-
-(defbase base58btc
-  :formatter b58/format-btc
-  :parser b58/parse-btc)
-
-
-;; ### Base64 (RFC 4648)
-
-(defbase base64
-  :formatter (b64/formatter false false)
-  :parser b64/parse)
-
-
-(defbase base64pad
-  :formatter (b64/formatter false true)
-  :parser b64/parse)
-
-
-(defbase base64url
-  :formatter (b64/formatter true false)
-  :parser b64/parse)
-
-
-(defbase base64urlpad
-  :formatter (b64/formatter true true)
-  :parser b64/parse)
-
-
-;; ## Lookup Functions
-
-(defn- install-base
-  "Expands a base definition map into one or more definitions and adds them to
-  the given map of bases. Returns the updated map, or throws an exception if
-  there is a conflict or insufficient information."
-  [base-map params]
-  (let [base-key (:key params)
-        prefix (some-> (get codes base-key) str)]
-    (when-not (keyword? base-key)
-      (throw (ex-info (str "Base registered with invalid key: "
-                           (pr-str base-key))
-                      {:params params})))
-    (when-not prefix
-      (throw (ex-info (str "Base " base-key " has no assigned prefix code!")
-                      {:params params})))
-    (when (contains? base-map base-key)
-      (throw (ex-info (str "Base " base-key " is already registered!")
-                      {:params params})))
-    (when-not (:formatter params)
-      (throw (ex-info (str "Base " base-key " does not specify a formatter function.")
-                      {:params params})))
-    (when-not (:parser params)
-      (throw (ex-info (str "Base " base-key " does not specify a parser function.")
-                      {:params params})))
-    (assoc base-map base-key (assoc params :prefix prefix))))
+(def ^:private b64-encodings
+  "Base64 encodings."
+  [{:key :base64
+    :formatter (fn format-base64
+                 [data]
+                 (b64/encode data false false))
+    :parser b64/decode}
+   {:key :base64pad
+    :formatter (fn format-base64pad
+                 [data]
+                 (b64/encode data false true))
+    :parser b64/decode}
+   {:key :base64url
+    :formatter (fn format-base64url
+                 [data]
+                 (b64/encode data true false))
+    :parser b64/decode}
+   {:key :base64urlpad
+    :formatter (fn format-base64urlpad
+                 [data]
+                 (b64/encode data true true))
+    :parser b64/decode}])
 
 
 (def bases
   "Map of base keys to definition maps."
-  (reduce install-base
-          {}
-          [base2
-           base8
-           base16
-           BASE16
-           base32
-           BASE32
-           base32pad
-           BASE32PAD
-           base32hex
-           BASE32HEX
-           base32hexpad
-           BASE32HEXPAD
-           base58btc
-           base64
-           base64pad
-           base64url
-           base64urlpad]))
+  (into {}
+        (comp
+          cat
+          (map (fn prep-base
+                 [params]
+                 (let [base-key (:key params)
+                       prefix (some-> (get codes base-key) str)]
+                   [base-key (assoc params :prefix prefix)]))))
+        [binary-encodings
+         hex-encodings
+         b32-encodings
+         b58-encodings
+         b64-encodings]))
 
 
 (def ^:private prefix->base
@@ -301,8 +242,10 @@
 
 (defn inspect
   "Inspect a string and return a map of information including the prefix
-  character, base key, and parsed data."
+  character, base key, and encoded data length."
   [^String string]
-  (let [prefix (get-prefix string)]
-    {:prefix prefix
-     :base (prefix->base prefix)}))
+  (let [prefix (get-prefix string)
+        base (prefix->base prefix)]
+    {:base base
+     :prefix prefix
+     :length (dec (count string))}))

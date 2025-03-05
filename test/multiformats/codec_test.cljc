@@ -1,7 +1,6 @@
 (ns multiformats.codec-test
   (:require
-    #?(:clj [clojure.test :refer [deftest testing is]]
-       :cljs [cljs.test :refer-macros [deftest testing is]])
+    [clojure.test :refer [deftest testing is]]
     [multiformats.codec :as mcodec]))
 
 

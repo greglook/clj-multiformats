@@ -1,8 +1,7 @@
 (ns multiformats.hash-test
   (:require
     [alphabase.bytes :as b :refer [bytes=]]
-    #?(:clj [clojure.test :refer [deftest testing is]]
-       :cljs [cljs.test :refer-macros [deftest testing is]])
+    [clojure.test :refer [deftest testing is]]
     #?(:cljs [goog.crypt :as crypt])
     [multiformats.hash :as mhash])
   #?(:clj

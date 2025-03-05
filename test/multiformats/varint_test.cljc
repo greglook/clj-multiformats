@@ -1,8 +1,7 @@
 (ns multiformats.varint-test
   (:require
     [alphabase.bytes :as b]
-    #?(:clj [clojure.test :refer [deftest testing is]]
-       :cljs [cljs.test :refer-macros [deftest testing is]])
+    [clojure.test :refer [deftest testing is]]
     [multiformats.varint :as varint]))
 
 

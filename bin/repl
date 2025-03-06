@@ -5,9 +5,11 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 if [[ -z $1 || $1 = clj ]]; then
     exec clj -M:dev:repl
+
 elif [[ $1 = cljs ]]; then
     echo "NYI: get this working" >&2
     exit 2
+
 else
     echo "Unknown REPL type: $1" >2
     exit 1

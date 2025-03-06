@@ -17,10 +17,11 @@ jobs:
       - run:
           name: Install cljstyle
           environment:
-            CLJSTYLE_VERSION: 0.15.0
+            CLJSTYLE_VERSION: 0.17.642
+            CLJSTYLE_PLATFORM: linux_amd64
           command: |
-            wget https://github.com/greglook/cljstyle/releases/download/${CLJSTYLE_VERSION}/cljstyle_${CLJSTYLE_VERSION}_linux.zip
-            unzip cljstyle_${CLJSTYLE_VERSION}_linux.zip
+            wget https://github.com/greglook/cljstyle/releases/download/${CLJSTYLE_VERSION}/cljstyle_${CLJSTYLE_VERSION}_${CLJSTYLE_PLATFORM}.zip
+            unzip cljstyle_${CLJSTYLE_VERSION}_${CLJSTYLE_PLATFORM}.zip
       - run:
           name: Check source formatting
           command: "./cljstyle check --report"
@@ -32,7 +33,7 @@ jobs:
       - run:
           name: Install clj-kondo
           environment:
-            CLJ_KONDO_VERSION: 2022.11.02
+            CLJ_KONDO_VERSION: 2024.11.14
           command: |
             wget https://github.com/borkdude/clj-kondo/releases/download/v${CLJ_KONDO_VERSION}/clj-kondo-${CLJ_KONDO_VERSION}-linux-amd64.zip
             unzip clj-kondo-${CLJ_KONDO_VERSION}-linux-amd64.zip
@@ -63,8 +64,8 @@ jobs:
       - run:
           name: Install NodeJS
           command: |
-            sudo apt-get update
-            sudo apt-get install -y npm
+            curl -fsSL https://deb.nodesource.com/setup_current.x | sudo -E bash -
+            sudo apt-get install -y nodejs
       - checkout
       - restore_cache:
           keys:
@@ -108,9 +109,9 @@ jobs:
           name: Generate test coverage
           command: bin/test coverage --codecov
       - save_cache:
+          key: v1-coverage-{{ checksum "deps.edn" }}
           paths:
             - ~/.m2
-          key: v1-coverage-{{ checksum "deps.edn" }}
       - store_artifacts:
           path: target/coverage
           destination: coverage

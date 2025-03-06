@@ -6,8 +6,8 @@
   https://github.com/multiformats/multihash"
   (:refer-clojure :exclude [test])
   (:require
-    [alphabase.bytes :as b]
     [alphabase.base16 :as hex]
+    [alphabase.bytes :as b]
     [clojure.string :as str]
     #?@(:cljs
         [[goog.crypt :as crypt]
@@ -16,9 +16,6 @@
          [goog.crypt.Sha256]
          [goog.crypt.Sha512]])
     [multiformats.varint :as varint])
-  #?(:cljs
-     (:require-macros
-       [multiformats.hash :refer [defhash]]))
   #?(:clj
      (:import
        (clojure.lang
@@ -413,28 +410,6 @@
 
 ;; ## Digest Constructors
 
-(defn- init-hasher
-  "Initialize a hashing algorithm to digest some content. Returns nil if the
-  algorithm is not supported on the current platform."
-  [algorithm]
-  #?(:clj
-     (some->
-       (case algorithm
-         :md5      "MD5"
-         :sha1     "SHA-1"
-         :sha2-256 "SHA-256"
-         :sha2-512 "SHA-512"
-         nil)
-       (MessageDigest/getInstance))
-     :cljs
-     (case algorithm
-       :md5      (goog.crypt.Md5.)
-       :sha1     (goog.crypt.Sha1.)
-       :sha2-256 (goog.crypt.Sha256.)
-       :sha2-512 (goog.crypt.Sha512.)
-       nil)))
-
-
 (defn- digest-content
   "Constructs a cryptographic digest for a given hasher and content. Content
   may be in the form of a raw byte array, a `ByteBuffer`, an `InputStream`, or
@@ -469,27 +444,40 @@
   (.digest hasher))
 
 
-(defmacro ^:private defhash
-  "Defines a new hashing function for the given algorithm."
-  [algo-sym]
-  `(defn ~algo-sym
-     ~(str "Calculates the " algo-sym
-           " digest of the given content and returns a multihash.")
-     [~'content]
-     (let [algo-key# ~(keyword algo-sym)
-           hasher# (init-hasher algo-key#)
-           digest# (digest-content hasher# ~'content)]
-       (create algo-key# digest#))))
+(defn md5
+  "Calculate a multihash of the content using MD5."
+  [content]
+  (let [hasher #?(:clj (MessageDigest/getInstance "MD5")
+                  :cljs (goog.crypt.Md5.))
+        digest (digest-content hasher content)]
+    (create :md5 digest)))
 
 
-;; Appease clj-kondo
-(declare md5 sha1 sha2-256 sha2-512)
+(defn sha1
+  "Calculate a multihash of the content using SHA-1."
+  [content]
+  (let [hasher #?(:clj (MessageDigest/getInstance "SHA-1")
+                  :cljs (goog.crypt.Sha1.))
+        digest (digest-content hasher content)]
+    (create :sha1 digest)))
 
 
-(defhash md5)
-(defhash sha1)
-(defhash sha2-256)
-(defhash sha2-512)
+(defn sha2-256
+  "Calculate a multihash of the content using SHA-256."
+  [content]
+  (let [hasher #?(:clj (MessageDigest/getInstance "SHA-256")
+                  :cljs (goog.crypt.Sha256.))
+        digest (digest-content hasher content)]
+    (create :sha2-256 digest)))
+
+
+(defn sha2-512
+  "Calculate a multihash of the content using SHA-512."
+  [content]
+  (let [hasher #?(:clj (MessageDigest/getInstance "SHA-512")
+                  :cljs (goog.crypt.Sha512.))
+        digest (digest-content hasher content)]
+    (create :sha2-512 digest)))
 
 
 (def functions
@@ -506,18 +494,15 @@
   nil if either argument is nil, true if the digest matches, or false if not.
   Throws an exception if the multihash specifies an unsupported algorithm."
   [mhash content]
-  (let [algo :algorithm
-        code :code]
-    (when (and mhash content)
-      (if-let [hasher (init-hasher (algo mhash))]
-        (let [digest (digest-content hasher content)
-              other (create (code mhash) digest)]
-          #?(:bb (= (:digest mhash)
-                    (:digest other))
-             :default (= mhash other)))
-        (throw (ex-info
-                 (str "No supported hashing function for algorithm "
-                      (or (algo mhash) (:code mhash))
-                      " to validate " mhash)
-                 {:code (:code mhash)
-                  :algorithm (algo mhash)}))))))
+  (when (and mhash content)
+    (if-let [hash-fn (get functions (:algorithm mhash))]
+      (let [other (hash-fn content)]
+        #?(:bb (= (:digest mhash)
+                  (:digest other))
+           :default (= mhash other)))
+      (throw (ex-info
+               (str "No supported hashing function for algorithm "
+                    (or (:algorithm mhash) (:code mhash))
+                    " to validate " mhash)
+               {:code (:code mhash)
+                :algorithm (:algorithm mhash)})))))

@@ -370,10 +370,11 @@
                    (b/bytes? x) (decode x)
                    (string? x) (parse x)
                    :else nil)]
-    (cond-> {:length (:length cid)
-             :version (:version cid)
-             :codec (:codec cid)
-             :code (:code cid)
-             :hash (:hash cid)}
-      (and (string? x) (pos? (:version cid)))
-      (merge (mbase/inspect x)))))
+    (let [info {:length (:length cid)
+                :version (:version cid)
+                :codec (:codec cid)
+                :code (:code cid)
+                :hash (:hash cid)}]
+      (if (and (string? x) (pos? (:version cid)))
+        (merge (mbase/inspect x) info)
+        info))))

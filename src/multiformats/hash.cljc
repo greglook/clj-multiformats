@@ -8,6 +8,7 @@
   (:require
     [alphabase.bytes :as b]
     [alphabase.base16 :as hex]
+    [clojure.string :as str]
     #?@(:cljs
         [[goog.crypt :as crypt]
          [goog.crypt.Md5]
@@ -74,7 +75,7 @@
   "Read the header and digest from the encoded bytes."
   [^bytes data]
   (let [[code length offset] (read-header data)
-        digest (subs (hex/encode data) (* 2 offset))]
+        digest (str/lower-case (subs (hex/encode data) (* 2 offset)))]
     {:code code
      :algorithm (find-algorithm code)
      :length length
@@ -350,7 +351,7 @@
         mhash (->Multihash encoded nil 0)]
     #?(:bb (assoc mhash
                   :length (count encoded)
-                  :digest (hex/encode digest-bytes)
+                  :digest (str/lower-case (hex/encode digest-bytes))
                   :code code
                   :algorithm (find-algorithm code)
                   :bits (* 8 (count digest-bytes)))
@@ -401,7 +402,7 @@
 (defn hex
   "Format a multihash as a hex string."
   [mhash]
-  (hex/encode (inner-bytes mhash)))
+  (str/lower-case (hex/encode (inner-bytes mhash))))
 
 
 (defn parse

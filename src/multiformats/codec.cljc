@@ -80,7 +80,9 @@
   (merge
     miscellaneous-codes
     multiformat-codes
-    maddr/protocol->code
+    (into {}
+          (map (juxt :key :code))
+          (vals maddr/protocols))
     mbase/codes
     mhash/codes
     serialization-codes

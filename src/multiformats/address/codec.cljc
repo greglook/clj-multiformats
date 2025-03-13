@@ -9,6 +9,8 @@
      (:import
        java.net.InetAddress)))
 
+;; TODO: I don't love this implementation, or how it's now the only secondary ns
+
 
 (defprotocol Codec
   "Convert multiaddr protocol values between
@@ -43,12 +45,6 @@
              ;; handle negative byte as unsigned byte
              mask (if (neg? raw-mask) (bit-and raw-mask 0xff) raw-mask)]
          (recur (bit-or n mask) (inc idx)))))))
-
-
-(defn- str->int
-  ([string radix]
-   (#?(:clj Integer/parseInt :cljs js/parseInt) string radix))
-  ([string] (str->int string 10)))
 
 
 (defn- int->str
@@ -151,7 +147,7 @@
   (str->bytes
     [_ value]
     (let [dst (b/byte-array num-bytes)
-          n (str->int value)]
+          n (parse-long value)]
       (when (> (min-bytes-for-uint n) num-bytes)
         (throw (ex-info (str "Value too big for " num-bytes " bytes")
                         {:value value :num-bytes num-bytes})))

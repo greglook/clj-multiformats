@@ -2,19 +2,22 @@
   "Multiaddr aims to make network addresses future-proof, composable, and
   efficient.
 
-  `Address` behaves like a collection of [protocol-key value] pairs, which you
-  can `seq` through or `conj` on new [key value] pairs.
+  An `Address` behaves like a sequence of `[protocol-key value]` pairs which
+  you can `seq` through. This isn't an associative structure on protocol keys
+  since you can have duplicate pairs and the order of the (key, val) pairs
+  matters (e.g, for cases like tunneling).
 
-  This isn't an associative structure on protocol-keys since you can
-  have duplicate pairs and the order of the (key, val) pairs matters
-  (e.g, for cases like tunneling).
+  The binary form of an address entry consists of one to three values:
+  - A varint encoding the numeric protocol code
+  - An optional varint with the number of bytes in a variable-length value (e.g. a UTF-8 string)
+  - The bytes encoding the protocol value, if any
 
-
-  See https://github.com/multiformats/multiaddr for more info on format"
+  See: https://github.com/multiformats/multiaddr"
   (:require
     [alphabase.bytes :as b]
     [clojure.string :as str]
-    [multiformats.address.codec :as codec]
+    #?@(:cljs [[goog.crypt :as crypt]
+               [goog.net.ipaddress :as ipaddress]])
     [multiformats.varint :as varint])
   #?(:clj
      (:import
@@ -22,134 +25,465 @@
          IMeta
          IObj
          IPersistentCollection
-         Seqable))))
+         Seqable)
+       (java.net
+         Inet4Address
+         Inet6Address
+         InetAddress))))
 
 
-(def protocol->attrs
-  "Map from address protocols to attributes used in encoding/decoding
+;; ## Protocol Definitions
+
+(def protocols
+  "Map from address protocol keywords to a map of information about it.
 
   https://github.com/multiformats/multiaddr/blob/master/protocols.csv"
-  {:ip4                {:code 0x04   :codec codec/ip4-codec}
-   :tcp                {:code 0x06   :codec codec/ushort-codec}
-   :udp                {:code 0x0111 :codec codec/ushort-codec}
-   :dccp               {:code 0x21   :codec codec/ushort-codec}
-   :ip6                {:code 0x21   :codec codec/ip6-codec}
-   :quic               {:code 0x01CC :codec codec/no-value-codec}
-   :udt                {:code 0x012D :codec codec/no-value-codec}
-   :utp                {:code 0x012E :codec codec/no-value-codec}
-   :ws                 {:code 0x01DD :codec codec/no-value-codec}
-   :wss                {:code 0x01DE :codec codec/no-value-codec}
-   :p2p-websocket-star {:code 0x1DF  :codec codec/no-value-codec}
-   :p2p-webrtc-star    {:code 0x113  :codec codec/no-value-codec}
-   :p2p-webrtc-direct  {:code 0x114  :codec codec/no-value-codec}
-   :p2p-circuit        {:code 0x0122 :codec codec/no-value-codec}
-   :dns                {:code 0x35   :codec codec/utf8-codec}
-   :dns4               {:code 0x36   :codec codec/utf8-codec}
-   :dns6               {:code 0x37   :codec codec/utf8-codec}
-   :dnsaddr            {:code 0x38   :codec codec/utf8-codec}})
+  (into {}
+        (map (fn prep-protocol
+               [proto]
+               [(first proto) (zipmap [:key :code :type :desc] proto)]))
+        [[:ip4             4 :ip4]
+         [:tcp             6 :ushort]
+         [:udp           273 :ushort]
+         [:dccp           33 :ushort]
+         [:ip6            41 :ip6]
+         [:ip6zone        42 :utf8 "rfc4007 IPv6 zone"]
+         [:dns            53 :utf8 "domain name resolvable to both IPv6 and IPv4 addresses"]
+         [:dns4           54 :utf8 "domain name resolvable only to IPv4 addresses"]
+         [:dns6           55 :utf8 "domain name resolvable only to IPv6 addresses"]
+         [:dnsaddr        56 :utf8]
+         [:sctp          132 :ushort]
+         [:udt           301 :null]
+         [:utp           302 :null]
+         [:unix          400 :utf8]
+         [:p2p           421 :utf8 "preferred over /ipfs"]
+         [:ipfs          421 :utf8 "backwards compatibility; equivalent to /p2p"]
+         [:garlic64      446 :utf8]
+         [:garlic32      447 :utf8]
+         [:tls           448 :null "Transport Layer Security"]
+         [:sni           449 :utf8 "Server Name Indication RFC 6066 § 3"]
+         [:noise         454 :null]
+         [:quic          460 :null]
+         [:quic-v1       461 :null]
+         [:webtransport  465 :null]
+         [:certhash      466 :utf8]
+         [:http          480 :null "HyperText Transfer Protocol"]
+         [:http-path     481 :utf8 "Percent-encoded path to an HTTP resource"]
+         [:https         443 :null "Deprecated alias for /tls/http"]
+         [:ws            477 :null "WebSockets"]
+         [:wss           478 :null "Deprecated alias for /tls/ws"]
+         [:webrtc-direct 280 :null "ICE-lite webrtc transport with SDP munging during connection establishment and without use of a STUN server"]
+         [:webrtc        281 :null "webrtc transport where connection establishment is according to w3c spec"]
+         [:p2p-circuit   290 :null]
+         [:memory        777 :utf8 "in memory transport for self-dialing and testing; arbitrary"]]))
 
 
-(def protocol->code
-  (into {} (map (juxt key (comp :code val)) protocol->attrs)))
+(def ^:private code->protocol
+  "Mapping from code point to protocol keyword."
+  (into {}
+        (map (juxt :code :key))
+        (vals protocols)))
 
 
-(def code->protocol
-  (into {} (map (juxt val key) protocol->code)))
+;; ## String Functions
+
+(defn- format-entry
+  "Format an address protocol entry into a segment in a human-readable string."
+  [[proto-key value]]
+  (if (some? value)
+    (str "/" (name proto-key) "/" value)
+    (str "/" (name proto-key))))
 
 
-(defn- ensure-protocol-attrs
-  "look up protocol attributes, throws if unknown"
-  [protocol-key]
-  (let [protocol-attrs (get protocol->attrs protocol-key)]
-    (when-not protocol-attrs
-      (throw (ex-info (str "No protocol associated with " protocol-key)
-                      {:protocol protocol-key})))
-    protocol-attrs))
+(defn- parse-entries
+  "Parse a formatted string into a sequence of protocol+value entries."
+  [string]
+  (when-not (str/starts-with? string "/")
+    (throw (ex-info "Expected address string to begin with a slash"
+                    {:address string})))
+  (loop [parts (rest (str/split string #"/"))
+         entries []]
+    (if (seq parts)
+      ;; Parse next protocol entry
+      (let [proto-str (first parts)]
+        (when-not (re-matches #"[a-z][a-z0-9-]+" proto-str)
+          (throw (ex-info (str "Invalid protocol type string: " proto-str)
+                          {:address string
+                           :protocol proto-str})))
+        (let [protocol (or (get protocols (keyword proto-str)))]
+          (when-not protocol
+            (throw (ex-info (str "Unknown protocol type: " proto-str)
+                            {:address string
+                             :protocol proto-str})))
+          (if (= :null (:type protocol))
+            (recur (next parts)
+                   (conj entries (:key protocol)))
+            (let [value (second parts)]
+              (when-not value
+                (throw (ex-info (str "Missing value for " proto-str " protocol")
+                                {:address string
+                                 :protocol (:key protocol)})))
+              (recur (nnext parts)
+                     (conj entries [(:key protocol) value]))))))
+      ;; No more parts to parse
+      entries)))
 
 
-(defn- copy-slice
-  ([src offset len]
-   (let [dst (b/byte-array len)]
-     (b/copy src offset dst 0 len)
-     dst))
-  ([src offset]
-   (copy-slice src offset (- (alength ^bytes src) offset))))
+;; ## Binary Encoding
+
+(defn- encode-utf8-entry
+  "Encode a protocol entry for a UTF-8 string value to a sequence of byte
+  arrays."
+  [protocol value]
+  (let [proto-key (:key protocol)
+        str-bytes (if (string? value)
+                    #?(:clj (.getBytes ^String value "UTF8")
+                       :cljs (js/Uint8Array. (crypt/stringToByteArray value)))
+                    (throw (ex-info (str "Protocol " (name proto-key)
+                                         " requires a UTF-8 string value, got: "
+                                         (pr-str value))
+                                    {:protocol proto-key
+                                     :value value})))]
+    [(varint/encode (:code protocol))
+     (varint/encode (count str-bytes))
+     str-bytes]))
 
 
-(defn- decode-value
-  "decode value using protocol `codec` in `data` starting at `offset`"
-  [codec ^bytes data offset]
-  (if-let [fixed-len (codec/fixed-byte-length codec)]
-    (let [value-bytes (copy-slice data offset fixed-len)]
-      [(codec/bytes->str codec value-bytes) fixed-len])
-    ;; varint encoding
-    (let [[value-len num-read] (varint/read-bytes data offset)
-          value-bytes (copy-slice data (+ offset num-read) value-len)]
-      [(codec/bytes->str codec value-bytes) (+ num-read value-len)])))
+(defn- encode-short-entry
+  "Encode a protocol entry for an unsigned short value to a sequence of byte
+  arrays."
+  [protocol value]
+  (let [proto-key (:key protocol)
+        n (cond
+            (integer? value)
+            value
+
+            (string? value)
+            (or (parse-long value)
+                (throw (ex-info (str "Protocol " (name proto-key)
+                                     " has invalid string value: " value)
+                                {:protocol proto-key
+                                 :value value})))
+
+            :else
+            (throw (ex-info (str "Protocol " (name proto-key)
+                                 " requires an unsigned short value or numeric string, got: "
+                                 (pr-str value))
+                            {:protocol proto-key
+                             :value value})))]
+    (when (< 65535 n)
+      (throw (ex-info (str "Protocol " (name proto-key)
+                           " has value too big for unsigned short: " n)
+                      {:protocol proto-key
+                       :value n})))
+    [(varint/encode (:code protocol))
+     (b/init-bytes
+       [(bit-and (bit-shift-right n 8) 0xFF)
+        (bit-and n 0xFF)])]))
 
 
-(defn- protocol-value-seq
-  "lazy sequence of `[protocol-key value]`, where
-  `value` is a string representation of the address protocol
-   value of `nil` if protocol has no value"
-  ([^bytes data]
-   (protocol-value-seq data 0))
-  ([^bytes data offset]
-   (when (< offset (alength data))
-     (lazy-seq
-       (let [[code code-len] (varint/read-bytes data offset)
-             protocol-key (get code->protocol code)
-             codec (:codec (ensure-protocol-attrs protocol-key))
-             val-start (+ offset code-len)
-             [value num-read] (decode-value codec data val-start)]
-         (cons [protocol-key value]
-               (protocol-value-seq data (+ offset code-len num-read))))))))
+(defn- encode-ip4-entry
+  "Encode a protocol entry for an IPv4 address value to a sequence of byte
+  arrays."
+  [protocol value]
+  (let [proto-key (:key protocol)
+        addr-bytes (cond
+                     (string? value)
+                     #?(:clj
+                        (try
+                          (let [addr (InetAddress/getByName value)]
+                            (when-not (instance? Inet4Address addr)
+                              (throw (ex-info (str "Invalid IPv4 address string: " value)
+                                              {:protocol proto-key
+                                               :value value})))
+                            (.getAddress addr))
+                          (catch Exception ex
+                            (throw (ex-info (str "Invalid IPv4 address string: " value)
+                                            {:protocol proto-key
+                                             :value value}
+                                            ex))))
+
+                        :cljs
+                        (let [addr (ipaddress/IpAddress.fromString value)]
+                          (when (or (nil? addr) (not= 4 (.getVersion addr)))
+                            (throw (ex-info (str "Invalid IPv4 address string: " value)
+                                            {:protocol proto-key
+                                             :value value})))
+                          (let [bs (b/byte-array 4)
+                                addr-ints (.toInteger addr)
+                                n (.getBitsUnsigned addr-ints 0)]
+                            ;; goog.math.Integer int32 pieces are little endian
+                            ;; so need to work backwards for network order.
+                            (b/set-byte bs 0 (bit-and (bit-shift-right n 24) 0xFF))
+                            (b/set-byte bs 1 (bit-and (bit-shift-right n 16) 0xFF))
+                            (b/set-byte bs 2 (bit-and (bit-shift-right n 8) 0xFF))
+                            (b/set-byte bs 3 (bit-and n 0xFF))
+                            bs)))
+
+                     ;; TODO: could accept "real" IP value types here
+
+                     :else
+                     (throw (ex-info (str "Protocol " (name proto-key)
+                                          " requires an IP address string, got: "
+                                          (pr-str value))
+                                     {:protocol proto-key
+                                      :value value})))]
+    [(varint/encode (:code protocol))
+     addr-bytes]))
 
 
-(defn- concat-arrs
-  [& arrs]
-  (let [arrs (remove nil? arrs)
-        total-len (reduce + (map alength arrs))
-        dst (b/byte-array total-len)]
-    (loop [arrs arrs offset 0]
-      (when-let [^bytes src (first arrs)]
-        (b/copy src 0 dst offset (alength src))
-        (recur (next arrs) (+ offset (alength src)))))
-    dst))
+(defn- encode-ip6-entry
+  "Encode a protocol entry for an IPv6 address value to a sequence of byte
+  arrays."
+  [protocol value]
+  (let [proto-key (:key protocol)
+        addr-bytes (cond
+                     (string? value)
+                     #?(:clj
+                        (try
+                          (let [addr (InetAddress/getByName value)]
+                            (when-not (instance? Inet6Address addr)
+                              (throw (ex-info (str "Invalid IPv6 address string: " value)
+                                              {:protocol proto-key
+                                               :value value})))
+                            (.getAddress addr))
+                          (catch Exception ex
+                            (throw (ex-info (str "Invalid IPv6 address string: " value)
+                                            {:protocol proto-key
+                                             :value value}
+                                            ex))))
+
+                        :cljs
+                        (let [addr (ipaddress/IpAddress.fromString value)]
+                          (when (or (nil? addr) (not= 6 (.getVersion addr)))
+                            (throw (ex-info (str "Invalid IPv6 address string: " value)
+                                            {:protocol proto-key
+                                             :value value})))
+                          (let [bs (b/byte-array 16)
+                                addr-ints (.toInteger addr)]
+                            ;; goog.math.Integer int32 pieces are little endian
+                            ;; so need to work backwards for network order.
+                            (dotimes [idx 4]
+                              (let [n (.getBitsUnsigned addr-ints (- 3 idx))
+                                    offset (* 4 idx)]
+                                (b/set-byte bs (+ offset 0) (bit-and (bit-shift-right n 24) 0xFF))
+                                (b/set-byte bs (+ offset 1) (bit-and (bit-shift-right n 16) 0xFF))
+                                (b/set-byte bs (+ offset 2) (bit-and (bit-shift-right n 8) 0xFF))
+                                (b/set-byte bs (+ offset 3) (bit-and n 0xFF))))
+                            bs)))
+
+                     ;; TODO: could accept "real" IP value types here
+
+                     :else
+                     (throw (ex-info (str "Protocol " (name proto-key)
+                                          " requires an IP address string, got: "
+                                          (pr-str value))
+                                     {:protocol proto-key
+                                      :value value})))]
+    [(varint/encode (:code protocol))
+     addr-bytes]))
 
 
-(defn- entry-bytes
-  "Build byte array representation for protocol/value pair,
-   note that `value` may be nil for no-value protocols.
+(defn- encode-entry
+  "Encode a protocol entry to a sequence of byte arrays that represent the
+  entry when concatenated together."
+  [proto-key value]
+  (let [protocol (get protocols proto-key)]
+    (when-not protocol
+      (throw (ex-info (str "Unsupported protocol type: " (name proto-key))
+                      {:address string
+                       :protocol proto-key})))
+    (case (:type protocol)
+      :null
+      [(varint/encode (:code protocol))]
 
-   Entry can either be a single keyword for a no-value protocol, or a
-   pair of [protocol-key value]. You can also pass in [key nil] for a protocol
-   not expecting a value"
-  [entry]
-  (let [protocol-key (if (keyword? entry) entry (first entry))
-        value (when (coll? entry) (second entry))
-        {:keys [code, codec]} (ensure-protocol-attrs protocol-key)
-        code-bytes (varint/encode code)
-        fixed-len (codec/fixed-byte-length codec)
-        ;; no value bytes needed for no-value protocols (fixed-length at 0)
-        val-bytes (when (or (not fixed-len) (pos? fixed-len))
-                    (codec/str->bytes codec value))
-        ;; only have length bytes for variable length protocols
-        val-len-bytes (when-not fixed-len
-                        (varint/encode (alength ^bytes val-bytes)))]
-    (concat-arrs code-bytes val-len-bytes val-bytes)))
+      :utf8
+      (encode-utf-entry protocol value)
+
+      :ushort
+      (encode-short-entry protocol value)
+
+      :ip4
+      (encode-ip4-entry protocol value)
+
+      :ip6
+      (encode-ip6-entry protocol value))))
 
 
-(defn- address-str
-  "Produce a string representation of an address sequence."
+;; ## Binary Decoding
+
+(defn- decode-utf8-entry
+  "Decode a protocol entry for a UTF-8 string value from the offset into the
+  byte array. Returns a vector with the value and the number of bytes read."
+  [^bytes data offset]
+  (let [[str-len len-len] (varint/read-bytes data offset)
+        string #?(:clj
+                  (String. data (+ offset len-len) str-len "UTF-8")
+                  :cljs
+                  (crypt/utf8ByteArrayToString
+                    (b/copy-slice data (+ offset len-len) str-len)))]
+    [string (+ len-len str-len)]))
+
+
+(defn- decode-short-entry
+  "Decode a protocol entry for an unsigned short value from the offset into the
+  byte array. Returns a vector with the value and the number of bytes read."
+  [^bytes data offset]
+  (let [n (bit-or (bit-shift-left (b/get-byte data offset) 8)
+                  (b/get-byte data (inc offset)))]
+    [n 2]))
+
+
+(defn- decode-ip4-entry
+  "Decode a protocol entry for an IPv4 address value from the offset into the
+  byte array. Returns a vector with the value and the number of bytes read."
+  [^bytes data offset]
+  (let [addr #?(:clj
+                (->
+                  (b/copy-slice data offset 4)
+                  (InetAddress/getByAddress)
+                  (.getHostAddress))
+                ;; goog.net.IpAddress doesn't support an easy way
+                ;; to build IP from bytes, so manually construct string
+                :cljs
+                (str (b/get-byte data offset) "."
+                     (b/get-byte data (+ offset 1)) "."
+                     (b/get-byte data (+ offset 2)) "."
+                     (b/get-byte data (+ offset 3))))]
+    [addr 4]))
+
+
+(defn- decode-ip6-entry
+  "Decode a protocol entry for an IPv6 address value from the offset into the
+  byte array. Returns a vector with the value and the number of bytes read."
+  [^bytes data offset]
+  (let [addr #?(:clj
+                (->
+                  (b/copy-slice data offset 16)
+                  (InetAddress/getByAddress)
+                  (.getHostAddress))
+                ;; goog.net.IpAddress doesn't support an easy way
+                ;; to build IP from bytes, so manually construct string
+                :cljs
+                (->>
+                  (range 8)
+                  (map (fn extract-hextet
+                         [i]
+                         (let [hex-off (+ offset (* 2 i))
+                               n (bit-or
+                                   (bit-shift-left (b/get-byte data hex-off) 8)
+                                   (b/get-byte data (inc hex-off)))]
+                           (.toString n 16))))
+                  (str/join ":")))]
+    [addr 4]))
+
+
+(defn- decode-entry
+  "Decode a protocol entry from the offset into the byte array. Returns a
+  vector with the protocol entry and its length in bytes."
+  [^bytes data offset]
+  (let [[code code-len] (varint/read-bytes data offset)
+        proto-key (code->protocol code)
+        protocol (get protocols proto-key)]
+    (when-not protocol
+      (throw (ex-info (str "Unsupported protocol code: " code)
+                      {:code code})))
+    (case (:type protocol)
+      :null
+      [[proto-key] code-len]
+
+      :utf8
+      (let [[string val-len] (decode-utf8-entry data (+ offset code-len))]
+        [[proto-key string] (+ code-len val-len)])
+
+      :ushort
+      (let [[n val-len] (decode-short-entry data (+ offset code-len))]
+        [[proto-key n] (+ code-len val-len)])
+
+      :ip4
+      (let [[addr val-len] (decode-ip4-entry data (+ offset code-len))]
+        [[proto-key addr] (+ code-len val-len)])
+
+      :ip6
+      (let [[addr val-len] (decode-ip6-entry data (+ offset code-len))]
+        [[proto-key addr] (+ code-len val-len)]))))
+
+
+;; ## Multiaddr Type
+
+;; TODO: reimplement
+(deftype Address
+  [^bytes _bytes
+   _points
+   _meta
+   ^:unsynchronized-mutable _hash])
+
+
+;; ## Constructors
+
+(defn create
+  "Constructs a new multiaddr from a sequence of protocol/value pairs. Each
+  entry should be a vector with a protocol keyword and a value; alternatively,
+  protocols with no value may be specified as a simple keyword. The values
+  should be either strings or appropriate types, such as numbers or IP
+  addresses.
+
+      (create [[:ip4 \"127.0.0.1\"] [:tcp 80] :tls])"
   [entries]
-  (->> (seq entries)
-       (mapcat (fn [[k v]] [(name k) v]))
-       (remove nil?)
-       (str/join "/")
-       (str "/")))
+  (let [entry-bytes (mapv encode-entry entries)
+        points (->>
+                 entry-bytes
+                 (mapv (fn entry-width
+                         [entry-arrs]
+                         (apply + (map count entry-arrs))))
+                 (pop))
+        addr-bytes (apply b/concat (apply concat entry-bytes))]
+    (->Address addr-bytes points nil 0)))
 
 
+(defn parse
+  "Parse a string representation into a multiaddr.
+
+      (parse \"/ip4/127.0.0.1/tcp/80/tls\")"
+  ^Address
+  [string]
+  (create (parse-entries string)))
+
+
+;; ## Serialization
+
+(defn- inner-bytes
+  "Retrieve the inner encoded bytes from a multiaddr value."
+  ^bytes
+  [^Address maddr]
+  (#?(:cljs .-_bytes, :default ._bytes) maddr))
+
+
+(defn encode
+  "Encode a multiaddr into a binary representation. Returns the byte array."
+  ^bytes
+  [^Address maddr]
+  (b/copy (inner-bytes maddr)))
+
+
+(defn decode
+  "Decode a multiaddr by reading data from a byte array."
+  ^Address
+  [^bytes data]
+  (when (seq data)
+    (loop [offset 0
+           points []]
+      (if (< offset (alength data))
+        (let [[entry entry-len] (decode-entry data offset)
+              next-offset (+ offset entry-len)]
+          (recur next-offset (conj points next-offset)))
+        (->Address (b/copy data) points nil 0)))))
+
+
+;; ## OLD STUFF
+
+;; TODO: bb support?
+#_
 #?(:clj
    (deftype Address
      [^bytes _data
@@ -287,59 +621,3 @@
      (toString
        [this]
        (address-str this))))
-
-
-(defn- parse-entries
-  [address-str]
-  (loop [parts (->> #"/" (str/split address-str) (remove str/blank?))
-         pairs []]
-    (if-let [protocol-key (-> parts first keyword)]
-      (let [codec (:codec (ensure-protocol-attrs protocol-key))
-            fixed-len (codec/fixed-byte-length codec)]
-        (if (and fixed-len (zero? fixed-len))
-          (recur (next parts) (conj pairs [protocol-key nil]))
-          (let [value (second parts)]
-            (when-not value
-              (throw (ex-info (str "Missing value for  " (name protocol-key))
-                              {:protocol protocol-key :address address-str})))
-            (recur (nnext parts)
-                   (conj pairs [protocol-key (str value)])))))
-      pairs)))
-
-
-(defn parse
-  "parse a human-readable multiaddr string; the data that backs
-   the result is a packed representation.
-
-  The `Address` result can be treated as a collection over
-  the [protocol-key value] pairs that you can seq over
-  or directly `(conj addr [key val])` pairs unto
-  "
-  ^Address [address-str]
-  (let [pairs (parse-entries address-str)
-        pair-bytes (map entry-bytes pairs)]
-    (->Address (apply concat-arrs pair-bytes) nil 0)))
-
-
-(defn create
-  "create address from entries (possibly empty) you can build on
-
-  (str (create [[:ip4 \"127.0.0.1\"][:tcp \"80\"]]))
-  >> \"/ip4/127.0.0.1/tcp/80\" "
-  [& entries]
-  (let [addr-bytes (apply concat-arrs (map entry-bytes entries))]
-    (->Address addr-bytes nil 0)))
-
-
-(defn encode
-  "returns byte array representation of address"
-  ^bytes
-  [^Address addr]
-  (b/copy (.-_data addr)))
-
-
-(defn decode
-  "Decode address from byte array"
-  ^Address
-  [^bytes data]
-  (Address. data nil 0))

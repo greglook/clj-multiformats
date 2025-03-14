@@ -22,10 +22,15 @@
   #?(:clj
      (:import
        (clojure.lang
+         Counted
          IMeta
          IObj
          IPersistentCollection
-         Seqable)
+         IPersistentStack
+         Indexed
+         Seqable
+         Sequential)
+       java.io.Serializable
        (java.net
          Inet4Address
          Inet6Address
@@ -93,6 +98,12 @@
   (if (some? value)
     (str "/" (name proto-key) "/" value)
     (str "/" (name proto-key))))
+
+
+(defn- format-entries
+  "Format an entire address string from a sequence of protocol entries."
+  [entries]
+  (str/join (map format-entry entries)))
 
 
 (defn- parse-entries
@@ -291,14 +302,17 @@
   (let [protocol (get protocols proto-key)]
     (when-not protocol
       (throw (ex-info (str "Unsupported protocol type: " (name proto-key))
-                      {:address string
-                       :protocol proto-key})))
+                      {:protocol proto-key})))
     (case (:type protocol)
       :null
-      [(varint/encode (:code protocol))]
+      (if (nil? value)
+        [(varint/encode (:code protocol))]
+        (throw (ex-info (str "Protocol " (name proto-key) " does not support values, got: " (pr-str value))
+                        {:protocol proto-key
+                         :value value})))
 
       :utf8
-      (encode-utf-entry protocol value)
+      (encode-utf8-entry protocol value)
 
       :ushort
       (encode-short-entry protocol value)
@@ -318,7 +332,7 @@
   [^bytes data offset]
   (let [[str-len len-len] (varint/read-bytes data offset)
         string #?(:clj
-                  (String. data (+ offset len-len) str-len "UTF-8")
+                  (String. data (int (+ offset len-len)) (int str-len) "UTF-8")
                   :cljs
                   (crypt/utf8ByteArrayToString
                     (b/copy-slice data (+ offset len-len) str-len)))]
@@ -409,14 +423,322 @@
         [[proto-key addr] (+ code-len val-len)]))))
 
 
-;; ## Multiaddr Type
+(defn- decode-entries
+  "Decode a sequence of entries from the byte array."
+  [^bytes data]
+  (loop [offset 0
+         entries []]
+    (if (< offset (alength data))
+      (let [[entry entry-len] (decode-entry data offset)]
+        (recur (long (+ offset entry-len)) (conj entries entry)))
+      entries)))
 
-;; TODO: reimplement
-(deftype Address
-  [^bytes _bytes
-   _points
-   _meta
-   ^:unsynchronized-mutable _hash])
+
+;; ## Address Type
+
+#?(:clj
+   (deftype Address
+     [^bytes _bytes
+      _points
+      _meta
+      ^:unsynchronized-mutable _hash]
+
+     Serializable
+
+
+     Object
+
+     (toString
+       [_]
+       (format-entries (decode-entries _bytes)))
+
+
+     (equals
+       [this that]
+       (cond
+         (identical? this that)
+         true
+
+         (instance? Address that)
+         (b/bytes= _bytes (._bytes ^Address that))
+
+         :else
+         false))
+
+
+     (hashCode
+       [_]
+       (if (zero? _hash)
+         (let [hc (hash (b/byte-seq _bytes))]
+           (set! _hash hc)
+           hc)
+         _hash))
+
+
+     Comparable
+
+     (compareTo
+       [this that]
+       (cond
+         (identical? this that)
+         0
+
+         (instance? Address that)
+         (compare (seq this) (seq that))
+
+         :else
+         (throw (ex-info
+                  (str "Cannot compare multiaddress value to " (type that))
+                  {:this this
+                   :that that}))))
+
+
+     IMeta
+
+     (meta
+       [_]
+       _meta)
+
+
+     IObj
+
+     (withMeta
+       [_ new-meta]
+       (Address. _bytes _points new-meta _hash))
+
+
+     Counted
+
+     (count
+       [_]
+       (inc (count _points)))
+
+
+     Sequential
+
+
+     Seqable
+
+     (seq
+       [_]
+       (seq (decode-entries _bytes)))
+
+
+     Indexed
+
+     (nth
+       [_ i]
+       (if (<= 0 i (- (count _points) 2))
+         (let [offset (if (zero? i)
+                        0
+                        (nth _points (dec i)))]
+           (first (decode-entry _bytes offset)))
+         (throw (IndexOutOfBoundsException.
+                  (str "Index " i " is outside the "
+                       (inc (count _points)) " elements in the address")))))
+
+
+     (nth
+       [_ i not-found]
+       (if (<= 0 i (- (count _points) 2))
+         (let [offset (if (zero? i)
+                        0
+                        (nth _points (dec i)))]
+           (first (decode-entry _bytes offset)))
+         not-found))
+
+
+     IPersistentCollection
+
+     (empty
+       [_]
+       (throw (ex-info "Multiaddress values are not emptyable" {})))
+
+
+     (equiv
+       [this that]
+       (= this that))
+
+
+     (cons
+       [_ entry]
+       (when-not (and (vector? entry)
+                      (keyword? (first entry))
+                      (or (= 1 (count entry))
+                          (= 2 (count entry))))
+         (throw (ex-info "Entry added to multiaddress must be a protocol vector pair"
+                         {:entry entry})))
+       (let [entry-arrs (encode-entry (first entry) (second entry))
+             entry-len (apply + (map count entry-arrs))
+             new-bytes (apply b/concat (cons _bytes entry-arrs))
+             new-points (conj _points (alength _bytes))]
+         (Address. new-bytes new-points _meta 0)))
+
+
+     IPersistentStack
+
+     (peek
+       [_]
+       (let [offset (peek _points)]
+         (first (decode-entry _bytes offset))))
+
+
+     (pop
+       [_]
+       (when (empty? _points)
+         (throw (ex-info "Cannot remove the only element of an address" {})))
+       (let [offset (peek _points)
+             new-bytes (b/copy-slice _bytes 0 offset)
+             new-points (pop _points)]
+         (Address. new-bytes new-points _meta 0))))
+
+   :cljs
+   (deftype Address
+     [_bytes
+      _points
+      _meta
+      ^:unsynchronized-mutable _hash]
+
+     Object
+
+     (toString
+       [_]
+       (format-entries (decode-entries _bytes)))
+
+
+     IEquiv
+
+     (-equiv
+       [this that]
+       (cond
+         (identical? this that)
+         true
+
+         (instance? Address that)
+         (b/bytes= _bytes (.-_bytes ^Address that))
+
+         :else
+         false))
+
+
+     IHash
+
+     (-hash
+       [_]
+       (if (zero? _hash)
+         (let [hc (hash (b/byte-seq _bytes))]
+           (set! _hash hc)
+           hc)
+         _hash))
+
+
+     IComparable
+
+     (-compare
+       [this that]
+       (cond
+         (identical? this that)
+         0
+
+         (instance? Address that)
+         (compare (seq this) (seq that))
+
+         :else
+         (throw (ex-info
+                  (str "Cannot compare multiaddress value to " (type that))
+                  {:this this
+                   :that that}))))
+
+
+     IMeta
+
+     (-meta
+       [_]
+       _meta)
+
+
+     IWithMeta
+
+     (-with-meta
+       [_ new-meta]
+       (Address. _bytes _points new-meta _hash))
+
+
+     ICounted
+
+     (-count
+       [_]
+       (inc (count _points)))
+
+
+     ISequential
+
+
+     ISeqable
+
+     (-seq
+       [_]
+       (seq (decode-entries _bytes)))
+
+
+     IIndexed
+
+     (-nth
+       [this i]
+       (if (<= 0 i (- (count _points) 2))
+         (let [offset (if (zero? i)
+                        0
+                        (nth _points (dec i)))]
+           (first (decode-entry _bytes offset)))
+         (throw (ex-info
+                  (str "Index " i " is outside the "
+                       (inc (count _points)) " elements in the address")
+                  {:i i}))))
+
+
+     (-nth
+       [_ i not-found]
+       (if (<= 0 i (- (count _points) 2))
+         (let [offset (if (zero? i)
+                        0
+                        (nth _points (dec i)))]
+           (first (decode-entry _bytes offset)))
+         not-found))
+
+
+     ICollection
+
+     (-conj
+       [_ entry]
+       (when-not (and (vector? entry)
+                      (keyword? (first entry))
+                      (or (= 1 (count entry))
+                          (= 2 (count entry))))
+         (throw (ex-info "Entry added to multiaddress must be a protocol vector pair"
+                         {:entry entry})))
+       (let [entry-arrs (encode-entry (first entry) (second entry))
+             entry-len (apply + (map count entry-arrs))
+             new-bytes (apply b/concat (cons _bytes entry-arrs))
+             new-points (conj _points (alength _bytes))]
+         (Address. new-bytes new-points _meta 0)))
+
+
+     IStack
+
+     (-peek
+       [_]
+       (let [offset (peek _points)]
+         (first (decode-entry _bytes offset))))
+
+
+     (-pop
+       [_]
+       (when (empty? _points)
+         (throw (ex-info "Cannot remove the only element of an address" {}))
+       (let [offset (peek _points)
+             new-bytes (b/copy-slice _bytes 0 offset)
+             new-points (pop _points)]
+         (Address. new-bytes new-points _meta 0))))))
 
 
 ;; ## Constructors
@@ -476,148 +798,5 @@
       (if (< offset (alength data))
         (let [[entry entry-len] (decode-entry data offset)
               next-offset (+ offset entry-len)]
-          (recur next-offset (conj points next-offset)))
+          (recur (long next-offset) (conj points next-offset)))
         (->Address (b/copy data) points nil 0)))))
-
-
-;; ## OLD STUFF
-
-;; TODO: bb support?
-#_
-#?(:clj
-   (deftype Address
-     [^bytes _data
-      _meta
-      ^:unsynchronized-mutable _hash]
-
-     Seqable
-
-     (seq
-       [_]
-       (protocol-value-seq _data))
-
-
-     IPersistentCollection
-
-     (count
-       [this]
-       (count (seq this)))
-
-
-     (empty
-       [_]
-       (Address. (b/byte-array 0) _meta 0))
-
-
-     (equiv
-       [this other]
-       (and (instance? Address other)
-            (b/bytes= (.-_data this) (.-_data ^Address other))))
-
-
-     (cons
-       [_ entry]
-       (Address. (concat-arrs _data (entry-bytes entry)) _meta 0))
-
-
-     IMeta
-
-     (meta
-       [_]
-       _meta)
-
-
-     IObj
-
-     (withMeta
-       [_ new-meta]
-       (Address. _data new-meta _hash))
-
-
-     (hashCode
-       [_]
-       (if (zero? _hash)
-         (let [hc (hash (b/byte-seq _data))]
-           (set! _hash hc)
-           hc)
-         _hash))
-
-
-     Object
-
-     (toString
-       [this]
-       (address-str this)))
-
-   :cljs
-   (deftype Address
-     [_data
-      _meta
-      ^:unsynchronized-mutable _hash]
-
-     ISeqable
-
-     (-seq
-       [_]
-       (protocol-value-seq _data))
-
-
-     ICounted
-
-     (-count
-       [this]
-       (count (seq this)))
-
-
-     IEmptyableCollection
-
-     (-empty
-       [_]
-       (Address. (b/byte-array 0) _meta 0))
-
-
-     IEquiv
-
-     (-equiv
-       [this other]
-       (and (instance? Address other)
-            (b/bytes= (.-_data this) (.-_data ^Address other))))
-
-
-     ICollection
-
-     (-conj
-       [_ entry]
-       (Address. (concat-arrs _data (entry-bytes entry)) _meta 0))
-
-
-     IMeta
-
-     (-meta
-       [_]
-       _meta)
-
-
-     IWithMeta
-
-     (-with-meta
-       [_ new-meta]
-       (Address. _data new-meta _hash))
-
-
-     IHash
-
-     (-hash
-       [_]
-       (if (zero? _hash)
-         (let [hc (hash (b/byte-seq _data))]
-           (set! _hash hc)
-           hc)
-         _hash))
-
-
-     Object
-
-     (toString
-       [this]
-       (address-str this))))

@@ -94,38 +94,54 @@
 
 
 (deftest string-serialization
-  (is (= "/ip4/127.0.0.1" (str (address/parse "/ip4/127.0.0.1"))))
-  (is (= "/ip4/10.8.0.5/tcp/80" (str (address/parse "/ip4/10.8.0.5/tcp/80"))))
-  (is (= "/dns/example.com/udp/9090/quic" (str (address/parse "/dns/example.com/udp/9090/quic"))))
-  (is (= "/dns6/abc.xyz/tcp/3217/tls/ws" (str (address/parse "/dns6/abc.xyz/tcp/3217/tls/ws")))))
+  (testing "bad inputs"
+    (is (thrown-with-msg? #?(:clj Exception, :cljs js/Error) #"Expected address string to begin with a slash"
+          (address/parse "foobar")))
+    (is (thrown-with-msg? #?(:clj Exception, :cljs js/Error) #"Invalid protocol type string: 123"
+          (address/parse "/123/foo")))
+    (is (thrown-with-msg? #?(:clj Exception, :cljs js/Error) #"Unknown protocol type: foo"
+          (address/parse "/foo")))
+    (is (thrown-with-msg? #?(:clj Exception, :cljs js/Error) #"Missing value for tcp protocol"
+          (address/parse "/dns/example.com/tcp"))))
+  (testing "roundtrips"
+    (is (= "/ip4/127.0.0.1" (str (address/parse "/ip4/127.0.0.1"))))
+    (is (= "/ip4/10.8.0.5/tcp/80" (str (address/parse "/ip4/10.8.0.5/tcp/80"))))
+    (is (= "/dns/example.com/udp/9090/quic" (str (address/parse "/dns/example.com/udp/9090/quic"))))
+    (is (= "/dns6/abc.xyz/tcp/3217/tls/ws" (str (address/parse "/dns6/abc.xyz/tcp/3217/tls/ws"))))))
 
 
 (deftest binary-serialization
-  (let [addr (address/create [[:ip4 "127.0.0.1"]])
-        data [4 127 0 0 1]]
-    (is (= data (b/byte-seq (address/encode addr))))
-    (is (= addr (address/decode (b/init-bytes data)))))
-  (let [addr (address/create [[:ip4 "10.8.0.5"] [:tcp 80]])
-        data [4, 10 8 0 5
-              6, 0 80]]
-    (is (= data (b/byte-seq (address/encode addr))))
-    (is (= addr (address/decode (b/init-bytes data)))))
-  (let [addr (address/create [[:ip6 "2001:db8:85a3:0:0:8a2e:370:7334"]
-                              [:sctp 8080]
-                              [:tls]])
-        data [41, 0x20 0x01 0x0d 0xb8 0x85 0xa3 0x00 0x00 0x00 0x00 0x8a 0x2e 0x03 0x70 0x73 0x34
-              132 1, 31 144
-              192 3]]
-    (is (= data (b/byte-seq (address/encode addr))))
-    (is (= addr (address/decode (b/init-bytes data)))))
-  (let [addr (address/create [[:dns "example.com"]
-                              [:udp 9090]
-                              :quic])
-        data [53, 11, 101 120 97 109 112 108 101 46 99 111 109
-              145 2, 35 130
-              204 3]]
-    (is (= data (b/byte-seq (address/encode addr))))
-    (is (= addr (address/decode (b/init-bytes data))))))
+  (testing "bad data"
+    (is (thrown-with-msg? #?(:clj Exception, :cljs js/Error) #"Unsupported protocol code: 1234"
+          (address/decode (b/init-bytes [210 9 5])))))
+  (testing "ip4 address"
+    (let [addr (address/create [[:ip4 "127.0.0.1"]])
+          data [4 127 0 0 1]]
+      (is (= data (b/byte-seq (address/encode addr))))
+      (is (= addr (address/decode (b/init-bytes data)))))
+    (let [addr (address/create [[:ip4 "10.8.0.5"] [:tcp 80]])
+          data [4, 10 8 0 5
+                6, 0 80]]
+      (is (= data (b/byte-seq (address/encode addr))))
+      (is (= addr (address/decode (b/init-bytes data))))))
+  (testing "ip6 address"
+    (let [addr (address/create [[:ip6 "2001:db8:85a3:0:0:8a2e:370:7334"]
+                                [:sctp 8080]
+                                [:tls]])
+          data [41, 0x20 0x01 0x0d 0xb8 0x85 0xa3 0x00 0x00 0x00 0x00 0x8a 0x2e 0x03 0x70 0x73 0x34
+                132 1, 31 144
+                192 3]]
+      (is (= data (b/byte-seq (address/encode addr))))
+      (is (= addr (address/decode (b/init-bytes data))))))
+  (testing "complex address"
+    (let [addr (address/create [[:dns "example.com"]
+                                [:udp 9090]
+                                :quic])
+          data [53, 11, 101 120 97 109 112 108 101 46 99 111 109
+                145 2, 35 130
+                204 3]]
+      (is (= data (b/byte-seq (address/encode addr))))
+      (is (= addr (address/decode (b/init-bytes data)))))))
 
 
 (deftest value-equality
@@ -173,6 +189,7 @@
     (is (= [[:dns "example.com"] [:tcp 443] [:tls] [:http]] (seq addr)))
     (is (= [:dns "example.com"] (nth addr 0)))
     (is (= [:tls] (nth addr 2)))
+    (is (= [:tcp 443] (nth addr 1 :missing)))
     (is (= :missing (nth addr 4 :missing)))
     (is (thrown-with-msg? #?(:clj IndexOutOfBoundsException, :cljs js/Error) #"Index 4 is outside the 4 elements in the address"
           (nth addr 4))

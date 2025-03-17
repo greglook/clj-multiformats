@@ -298,7 +298,7 @@
 (defn- encode-entry
   "Encode a protocol entry to a sequence of byte arrays that represent the
   entry when concatenated together."
-  [proto-key value]
+  [[proto-key value]]
   (let [protocol (get protocols proto-key)]
     (when-not protocol
       (throw (ex-info (str "Unsupported protocol type: " (name proto-key))
@@ -511,7 +511,7 @@
 
      (count
        [_]
-       (inc (count _points)))
+       (count _points))
 
 
      Sequential
@@ -528,22 +528,18 @@
 
      (nth
        [_ i]
-       (if (<= 0 i (- (count _points) 2))
-         (let [offset (if (zero? i)
-                        0
-                        (nth _points (dec i)))]
+       (if (<= 0 i (dec (count _points)))
+         (let [offset (nth _points i)]
            (first (decode-entry _bytes offset)))
          (throw (IndexOutOfBoundsException.
                   (str "Index " i " is outside the "
-                       (inc (count _points)) " elements in the address")))))
+                       (count _points) " elements in the address")))))
 
 
      (nth
        [_ i not-found]
-       (if (<= 0 i (- (count _points) 2))
-         (let [offset (if (zero? i)
-                        0
-                        (nth _points (dec i)))]
+       (if (<= 0 i (dec (count _points)))
+         (let [offset (nth _points i)]
            (first (decode-entry _bytes offset)))
          not-found))
 
@@ -552,12 +548,12 @@
 
      (empty
        [_]
-       (throw (ex-info "Multiaddress values are not emptyable" {})))
+       (Address. (b/byte-array 0) [] _meta 0))
 
 
      (equiv
        [this that]
-       (= this that))
+       (.equals this that))
 
 
      (cons
@@ -568,7 +564,7 @@
                           (= 2 (count entry))))
          (throw (ex-info "Entry added to multiaddress must be a protocol vector pair"
                          {:entry entry})))
-       (let [entry-arrs (encode-entry (first entry) (second entry))
+       (let [entry-arrs (encode-entry entry)
              entry-len (apply + (map count entry-arrs))
              new-bytes (apply b/concat (cons _bytes entry-arrs))
              new-points (conj _points (alength _bytes))]
@@ -579,14 +575,15 @@
 
      (peek
        [_]
-       (let [offset (peek _points)]
-         (first (decode-entry _bytes offset))))
+       (when (seq _points)
+         (let [offset (peek _points)]
+           (first (decode-entry _bytes offset)))))
 
 
      (pop
        [_]
        (when (empty? _points)
-         (throw (ex-info "Cannot remove the only element of an address" {})))
+         (throw (ex-info "Can't pop empty address" {})))
        (let [offset (peek _points)
              new-bytes (b/copy-slice _bytes 0 offset)
              new-points (pop _points)]
@@ -668,7 +665,7 @@
 
      (-count
        [_]
-       (inc (count _points)))
+       (count _points))
 
 
      ISequential
@@ -685,25 +682,28 @@
 
      (-nth
        [this i]
-       (if (<= 0 i (- (count _points) 2))
-         (let [offset (if (zero? i)
-                        0
-                        (nth _points (dec i)))]
+       (if (<= 0 i (dec (count _points)))
+         (let [offset (nth _points i)]
            (first (decode-entry _bytes offset)))
          (throw (ex-info
                   (str "Index " i " is outside the "
-                       (inc (count _points)) " elements in the address")
+                       (count _points) " elements in the address")
                   {:i i}))))
 
 
      (-nth
        [_ i not-found]
-       (if (<= 0 i (- (count _points) 2))
-         (let [offset (if (zero? i)
-                        0
-                        (nth _points (dec i)))]
+       (if (<= 0 i (dec (count _points)))
+         (let [offset (nth _points i)]
            (first (decode-entry _bytes offset)))
          not-found))
+
+
+     IEmptyableCollection
+
+     (-empty
+       [_]
+       (Address. (b/byte-array 0) [] _meta 0))
 
 
      ICollection
@@ -716,7 +716,7 @@
                           (= 2 (count entry))))
          (throw (ex-info "Entry added to multiaddress must be a protocol vector pair"
                          {:entry entry})))
-       (let [entry-arrs (encode-entry (first entry) (second entry))
+       (let [entry-arrs (encode-entry entry)
              entry-len (apply + (map count entry-arrs))
              new-bytes (apply b/concat (cons _bytes entry-arrs))
              new-points (conj _points (alength _bytes))]
@@ -727,18 +727,19 @@
 
      (-peek
        [_]
-       (let [offset (peek _points)]
-         (first (decode-entry _bytes offset))))
+       (when (seq _points)
+         (let [offset (peek _points)]
+           (first (decode-entry _bytes offset)))))
 
 
      (-pop
        [_]
        (when (empty? _points)
-         (throw (ex-info "Cannot remove the only element of an address" {}))
-       (let [offset (peek _points)
-             new-bytes (b/copy-slice _bytes 0 offset)
-             new-points (pop _points)]
-         (Address. new-bytes new-points _meta 0))))))
+         (throw (ex-info "Can't pop empty address" {}))
+         (let [offset (peek _points)
+               new-bytes (b/copy-slice _bytes 0 offset)
+               new-points (pop _points)]
+           (Address. new-bytes new-points _meta 0))))))
 
 
 ;; ## Constructors
@@ -753,12 +754,15 @@
       (create [[:ip4 \"127.0.0.1\"] [:tcp 80] :tls])"
   [entries]
   (let [entry-bytes (mapv encode-entry entries)
-        points (->>
-                 entry-bytes
-                 (mapv (fn entry-width
-                         [entry-arrs]
-                         (apply + (map count entry-arrs))))
-                 (pop))
+        points (if (seq entries)
+                 (->>
+                   entry-bytes
+                   (map (fn entry-width
+                          [entry-arrs]
+                          (apply + (map count entry-arrs))))
+                   (butlast)
+                   (into [0]))
+                 [])
         addr-bytes (apply b/concat (apply concat entry-bytes))]
     (->Address addr-bytes points nil 0)))
 
@@ -796,7 +800,7 @@
     (loop [offset 0
            points []]
       (if (< offset (alength data))
-        (let [[entry entry-len] (decode-entry data offset)
-              next-offset (+ offset entry-len)]
-          (recur (long next-offset) (conj points next-offset)))
+        (let [[entry entry-len] (decode-entry data offset)]
+          (recur (long (+ offset entry-len))
+                 (conj points offset)))
         (->Address (b/copy data) points nil 0)))))

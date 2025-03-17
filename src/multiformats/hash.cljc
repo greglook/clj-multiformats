@@ -50,6 +50,13 @@
    :x11          0x1100})
 
 
+(def ^:private code->algo
+  "Mapping of numeric code to algorithm keyword."
+  (into {}
+        (map (juxt val key))
+        codes))
+
+
 ;; ## Coding Functions
 
 (defn- read-header
@@ -61,20 +68,13 @@
     [code length (+ csize lsize)]))
 
 
-(defn- find-algorithm
-  "Look up an algorithm key by code. Returns nil if no matching algorithm is
-  present in the table."
-  [code]
-  (some #(when (= code (val %)) (key %)) codes))
-
-
 (defn- decode-parameters
   "Read the header and digest from the encoded bytes."
   [^bytes data]
   (let [[code length offset] (read-header data)
         digest (str/lower-case (subs (hex/encode data) (* 2 offset)))]
     {:code code
-     :algorithm (find-algorithm code)
+     :algorithm (code->algo code)
      :length length
      :digest digest}))
 
@@ -184,7 +184,7 @@
          :length (alength _bytes)
          :code (first (read-header _bytes))
          :algorithm (let [[code] (read-header _bytes)]
-                      (find-algorithm code))
+                      (code->algo code))
          :bits (let [[_ length] (read-header _bytes)]
                  (* length 8))
          :digest (:digest (decode-parameters _bytes))
@@ -273,7 +273,7 @@
          :length (alength _bytes)
          :code (first (read-header _bytes))
          :algorithm (let [[code] (read-header _bytes)]
-                      (find-algorithm code))
+                      (code->algo code))
          :bits (let [[_ length] (read-header _bytes)]
                  (* length 8))
          :digest (:digest (decode-parameters _bytes))
@@ -350,7 +350,7 @@
                   :length (count encoded)
                   :digest (str/lower-case (hex/encode digest-bytes))
                   :code code
-                  :algorithm (find-algorithm code)
+                  :algorithm (code->algo code)
                   :bits (* 8 (count digest-bytes)))
        :default mhash)))
 

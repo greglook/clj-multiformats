@@ -1,7 +1,7 @@
 {:paths ["src"]
 
  :deps
- {mvxcvi/alphabase {:mvn/version "3.0.179-SNAPSHOT"}}
+ {mvxcvi/alphabase {:mvn/version "3.0.182"}}
 
  :aliases
  {:build

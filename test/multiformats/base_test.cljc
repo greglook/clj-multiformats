@@ -5,7 +5,6 @@
   (:require
     [alphabase.bytes :as b :refer [bytes=]]
     [clojure.test :refer [deftest testing is]]
-    #?(:cljs [goog.crypt :as crypt])
     [multiformats.base :as mbase]))
 
 
@@ -46,12 +45,6 @@
           (mbase/parse "xabc")))))
 
 
-(defn- string-bytes
-  "Get a UTF-8 byte array from a string."
-  [string]
-  (#?(:clj .getBytes, :cljs crypt/stringToUtf8ByteArray) string))
-
-
 (deftest rfc-vectors
   (doseq [[base input encoded]
           [[:base64pad "f" "MZg=="]
@@ -79,13 +72,13 @@
            [:BASE16 "fooba" "F666F6F6261"]
            [:BASE16 "foobar" "F666F6F626172"]]]
     (testing (name base)
-      (let [data (string-bytes input)]
+      (let [data (b/from-string input)]
         (is (= encoded (mbase/format base data)))
         (is (bytes= data (mbase/parse encoded)))))))
 
 
 (deftest example-1
-  (let [data (string-bytes "Decentralize everything!!")
+  (let [data (b/from-string "Decentralize everything!!")
         cases {:base2 "001000100011001010110001101100101011011100111010001110010011000010110110001101001011110100110010100100000011001010111011001100101011100100111100101110100011010000110100101101110011001110010000100100001"
                :base8 "71043126154533472162302661513646244031273145344745643206455631620441"
                ;; :base10 "9429328951066508984658627669258025763026247056774804621697313"
@@ -113,7 +106,7 @@
 
 
 (deftest example-2
-  (let [data (string-bytes "yes mani !")
+  (let [data (b/from-string "yes mani !")
         cases {:base2 "001111001011001010111001100100000011011010110000101101110011010010010000000100001"
                :base8 "7171312714403326055632220041"
                ;; :base10 "9573277761329450583662625"
@@ -141,7 +134,7 @@
 
 
 (deftest example-3
-  (let [data (string-bytes "hello world")
+  (let [data (b/from-string "hello world")
         cases {:base2 "00110100001100101011011000110110001101111001000000111011101101111011100100110110001100100"
                :base8 "764145330661571007355734466144" ; originally had leading zero?
                ;; :base10 "9126207244316550804821666916"
@@ -169,7 +162,7 @@
 
 
 (deftest mixed-case
-  (let [data (string-bytes "hello world")]
+  (let [data (b/from-string "hello world")]
     (testing "base16 vs BASE16"
       (is (bytes= data (mbase/parse "f68656c6c6f20776F726C64")))
       (is (bytes= data (mbase/parse "F68656c6c6f20776F726C64"))))

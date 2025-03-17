@@ -418,9 +418,7 @@
   [^MessageDigest hasher content]
   (cond
     (string? content)
-    (let [utf8-bytes #?(:clj (.getBytes ^String content)
-                        :cljs (crypt/stringToUtf8ByteArray content))]
-      (.update hasher ^bytes utf8-bytes))
+    (.update hasher (b/from-string content))
 
     (b/bytes? content)
     (.update hasher ^bytes content)

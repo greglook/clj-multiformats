@@ -16,8 +16,7 @@
   (:require
     [alphabase.bytes :as b]
     [clojure.string :as str]
-    #?@(:cljs [[goog.crypt :as crypt]
-               [goog.net.ipaddress :as ipaddress]])
+    #?(:cljs [goog.net.ipaddress :as ipaddress])
     [multiformats.varint :as varint])
   #?(:clj
      (:import
@@ -148,8 +147,7 @@
   [protocol value]
   (let [proto-key (:key protocol)
         str-bytes (if (string? value)
-                    #?(:clj (.getBytes ^String value "UTF8")
-                       :cljs (js/Uint8Array. (crypt/stringToByteArray value)))
+                    (b/from-string value)
                     (throw (ex-info (str "Protocol " (name proto-key)
                                          " requires a UTF-8 string value, got: "
                                          (pr-str value))
@@ -344,8 +342,7 @@
         string #?(:clj
                   (String. data (int (+ offset len-len)) (int str-len) "UTF-8")
                   :cljs
-                  (crypt/utf8ByteArrayToString
-                    (b/copy-slice data (+ offset len-len) str-len)))]
+                  (b/to-string (b/copy-slice data (+ offset len-len) str-len)))]
     [string (+ len-len str-len)]))
 
 

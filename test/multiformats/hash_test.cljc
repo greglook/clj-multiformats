@@ -2,7 +2,6 @@
   (:require
     [alphabase.bytes :as b :refer [bytes=]]
     [clojure.test :refer [deftest testing is]]
-    #?(:cljs [goog.crypt :as crypt])
     [multiformats.hash :as mhash])
   #?(:clj
      (:import
@@ -110,8 +109,7 @@
   (doseq [[algorithm hash-fn] mhash/functions]
     (testing (str (name algorithm) " hashing")
       (let [content "foo bar baz"
-            cbytes #?(:clj (.getBytes content)
-                      :cljs (crypt/stringToUtf8ByteArray content))
+            cbytes (b/from-string content)
             mh1 (hash-fn content)
             mh2 (hash-fn cbytes)
             mh3 #?(:clj (hash-fn (ByteBuffer/wrap (.getBytes content)))

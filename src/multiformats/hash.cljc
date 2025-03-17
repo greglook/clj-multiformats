@@ -10,8 +10,7 @@
     [alphabase.bytes :as b]
     [clojure.string :as str]
     #?@(:cljs
-        [[goog.crypt :as crypt]
-         [goog.crypt.Md5]
+        [[goog.crypt.Md5]
          [goog.crypt.Sha1]
          [goog.crypt.Sha256]
          [goog.crypt.Sha512]])

@@ -120,7 +120,7 @@
           (throw (ex-info (str "Invalid protocol type string: " proto-str)
                           {:address string
                            :protocol proto-str})))
-        (let [protocol (or (get protocols (keyword proto-str)))]
+        (let [protocol (get protocols (keyword proto-str))]
           (when-not protocol
             (throw (ex-info (str "Unknown protocol type: " proto-str)
                             {:address string
@@ -567,7 +567,6 @@
      (cons
        [_ entry]
        (let [entry-arrs (encode-entry entry)
-             entry-len (apply + (map alength entry-arrs))
              new-bytes (apply b/concat (cons _bytes entry-arrs))
              new-points (conj _points (alength _bytes))]
          (Address. new-bytes new-points _meta 0)))
@@ -683,7 +682,7 @@
      IIndexed
 
      (-nth
-       [this i]
+       [_ i]
        (if (<= 0 i (dec (count _points)))
          (let [offset (nth _points i)]
            (first (decode-entry _bytes offset)))
@@ -713,7 +712,6 @@
      (-conj
        [_ entry]
        (let [entry-arrs (encode-entry entry)
-             entry-len (apply + (map alength entry-arrs))
              new-bytes (apply b/concat (cons _bytes entry-arrs))
              new-points (conj _points (alength _bytes))]
          (Address. new-bytes new-points _meta 0)))
@@ -791,7 +789,7 @@
     (loop [offset 0
            points []]
       (if (< offset (alength data))
-        (let [[entry entry-len] (decode-entry data offset)]
+        (let [[_ entry-len] (decode-entry data offset)]
           (recur (long (+ offset entry-len))
                  (conj points offset)))
         (->Address (b/copy data) points nil 0)))))

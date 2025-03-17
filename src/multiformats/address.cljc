@@ -156,7 +156,7 @@
                                     {:protocol proto-key
                                      :value value})))]
     [(varint/encode (:code protocol))
-     (varint/encode (count str-bytes))
+     (varint/encode (alength ^bytes str-bytes))
      str-bytes]))
 
 
@@ -298,8 +298,18 @@
 (defn- encode-entry
   "Encode a protocol entry to a sequence of byte arrays that represent the
   entry when concatenated together."
-  [[proto-key value]]
-  (let [protocol (get protocols proto-key)]
+  [entry]
+  (when-not (or (keyword? entry)
+                (and (vector? entry)
+                     (keyword? (first entry))
+                     (or (= 1 (count entry))
+                         (= 2 (count entry)))))
+    (throw (ex-info "Address entry must be a protocol keyword or vector pair"
+                    {:entry entry})))
+  (let [[proto-key value] (if (keyword? entry)
+                            [entry nil]
+                            entry)
+        protocol (get protocols proto-key)]
     (when-not protocol
       (throw (ex-info (str "Unsupported protocol type: " (name proto-key))
                       {:protocol proto-key})))
@@ -389,7 +399,7 @@
                                    (b/get-byte data (inc hex-off)))]
                            (.toString n 16))))
                   (str/join ":")))]
-    [addr 4]))
+    [addr 16]))
 
 
 (defn- decode-entry
@@ -401,7 +411,8 @@
         protocol (get protocols proto-key)]
     (when-not protocol
       (throw (ex-info (str "Unsupported protocol code: " code)
-                      {:code code})))
+                      {:code code
+                       :offset offset})))
     (case (:type protocol)
       :null
       [[proto-key] code-len]
@@ -484,7 +495,7 @@
          0
 
          (instance? Address that)
-         (compare (seq this) (seq that))
+         (b/compare _bytes (.-_bytes ^Address that))
 
          :else
          (throw (ex-info
@@ -558,14 +569,8 @@
 
      (cons
        [_ entry]
-       (when-not (and (vector? entry)
-                      (keyword? (first entry))
-                      (or (= 1 (count entry))
-                          (= 2 (count entry))))
-         (throw (ex-info "Entry added to multiaddress must be a protocol vector pair"
-                         {:entry entry})))
        (let [entry-arrs (encode-entry entry)
-             entry-len (apply + (map count entry-arrs))
+             entry-len (apply + (map alength entry-arrs))
              new-bytes (apply b/concat (cons _bytes entry-arrs))
              new-points (conj _points (alength _bytes))]
          (Address. new-bytes new-points _meta 0)))
@@ -638,7 +643,7 @@
          0
 
          (instance? Address that)
-         (compare (seq this) (seq that))
+         (b/compare _bytes (.-_bytes ^Address that))
 
          :else
          (throw (ex-info
@@ -710,14 +715,8 @@
 
      (-conj
        [_ entry]
-       (when-not (and (vector? entry)
-                      (keyword? (first entry))
-                      (or (= 1 (count entry))
-                          (= 2 (count entry))))
-         (throw (ex-info "Entry added to multiaddress must be a protocol vector pair"
-                         {:entry entry})))
        (let [entry-arrs (encode-entry entry)
-             entry-len (apply + (map count entry-arrs))
+             entry-len (apply + (map alength entry-arrs))
              new-bytes (apply b/concat (cons _bytes entry-arrs))
              new-points (conj _points (alength _bytes))]
          (Address. new-bytes new-points _meta 0)))
@@ -735,11 +734,14 @@
      (-pop
        [_]
        (when (empty? _points)
-         (throw (ex-info "Can't pop empty address" {}))
-         (let [offset (peek _points)
-               new-bytes (b/copy-slice _bytes 0 offset)
-               new-points (pop _points)]
-           (Address. new-bytes new-points _meta 0))))))
+         (throw (ex-info "Can't pop empty address" {})))
+       (let [offset (peek _points)
+             new-bytes (b/copy-slice _bytes 0 offset)
+             new-points (pop _points)]
+         (Address. new-bytes new-points _meta 0)))))
+
+
+(alter-meta! #'->Address assoc :private true)
 
 
 ;; ## Constructors
@@ -752,44 +754,36 @@
   addresses.
 
       (create [[:ip4 \"127.0.0.1\"] [:tcp 80] :tls])"
-  [entries]
-  (let [entry-bytes (mapv encode-entry entries)
-        points (if (seq entries)
-                 (->>
-                   entry-bytes
-                   (map (fn entry-width
-                          [entry-arrs]
-                          (apply + (map count entry-arrs))))
-                   (butlast)
-                   (into [0]))
-                 [])
-        addr-bytes (apply b/concat (apply concat entry-bytes))]
-    (->Address addr-bytes points nil 0)))
+  ([]
+   (create nil))
+  ([entries]
+   (let [entry-bytes (mapv encode-entry entries)
+         points (loop [offset 0
+                       points []
+                       entry-bytes entry-bytes]
+                  (if (seq entry-bytes)
+                    (let [next-len (apply + (map alength (first entry-bytes)))]
+                      (recur (long (+ offset next-len))
+                             (conj points offset)
+                             (next entry-bytes)))
+                    points))
+         addr-bytes (apply b/concat (apply concat entry-bytes))]
+     (->Address addr-bytes points nil 0))))
 
 
-(defn parse
-  "Parse a string representation into a multiaddr.
-
-      (parse \"/ip4/127.0.0.1/tcp/80/tls\")"
-  ^Address
-  [string]
-  (create (parse-entries string)))
+(defn address?
+  "True if the value is a multiaddress object."
+  [x]
+  (instance? Address x))
 
 
 ;; ## Serialization
 
-(defn- inner-bytes
-  "Retrieve the inner encoded bytes from a multiaddr value."
-  ^bytes
-  [^Address maddr]
-  (#?(:cljs .-_bytes, :default ._bytes) maddr))
-
-
 (defn encode
   "Encode a multiaddr into a binary representation. Returns the byte array."
   ^bytes
-  [^Address maddr]
-  (b/copy (inner-bytes maddr)))
+  [^Address addr]
+  (b/copy (.-_bytes addr)))
 
 
 (defn decode
@@ -804,3 +798,12 @@
           (recur (long (+ offset entry-len))
                  (conj points offset)))
         (->Address (b/copy data) points nil 0)))))
+
+
+(defn parse
+  "Parse a string representation into a multiaddr.
+
+      (parse \"/ip4/127.0.0.1/tcp/80/tls\")"
+  ^Address
+  [string]
+  (create (parse-entries string)))

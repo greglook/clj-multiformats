@@ -24,15 +24,34 @@
       "Nil hash should be rejected"))
 
 
+(deftest predicate
+  (is (cid/cid? (cid/create :raw (mhash/sha1 "hello"))))
+  (is (not (cid/cid? nil)))
+  (is (not (cid/cid? "foo"))))
+
+
 (deftest value-semantics
   (let [mh (mhash/sha1 "hello world")
         a (cid/create :raw mh)
         b (cid/create 0x51 mh)
         b' (cid/create :cbor mh)]
-    (is (= a a) "identical values are equal")
-    (is (= b b') "values with same code and digest are equal")
-    (is (integer? (hash a)) "hash code returns an integer")
-    (is (= (hash b) (hash b')) "equivalent objects return same hashcode")))
+    (testing "equality"
+      (is (= a a) "identical values are equal")
+      (is (= b b') "values with same code and digest are equal")
+      (is (not= a b))
+      (is (not= a nil))
+      (is (not= a "foo")))
+    (testing "hashing"
+      (is (integer? (hash a)) "hash code returns an integer")
+      (is (= (hash a) (hash a)) "hash code is reflexive")
+      (is (= (hash b) (hash b')) "equivalent objects return same hashcode"))
+    (testing "comparison"
+      (is (zero? (compare a a)))
+      (is (zero? (compare b b')))
+      (is (pos? (compare a b)))
+      (is (neg? (compare b a)))
+      (is (thrown-with-msg? #?(:clj ExceptionInfo, :cljs js/Error) #"Cannot compare CID value to"
+            (compare a "foo"))))))
 
 
 (deftest cid-properties

@@ -20,26 +20,46 @@
   (is (thrown? #?(:clj ExceptionInfo, :cljs js/Error)
         (mhash/create -1 "0beec7b8"))
       "Negative algorithm code should be rejected")
-  (is (thrown? #?(:clj ExceptionInfo, :cljs js/Error)
+  (is (thrown-with-msg? #?(:clj ExceptionInfo, :cljs js/Error) #"nil is not a byte array or hex string"
         (mhash/create :sha1 nil))
       "Nil digest should be rejected")
-  (is (thrown? #?(:clj ExceptionInfo, :cljs js/Error)
+  (is (thrown-with-msg? #?(:clj ExceptionInfo, :cljs js/Error) #"Cannot encode a multihash with an empty digest"
         (mhash/create 0x11 (b/byte-array 0)))
       "Empty digest should be rejected"))
 
 
-#?(:bb nil :default
+(deftest predicate
+  (is (mhash/multihash? (mhash/create :sha1 "deadbeef")))
+  (is (not (mhash/multihash? nil)))
+  (is (not (mhash/multihash? "foo"))))
+
+
+#?(:bb nil
+   :default
    (deftest value-semantics
      (let [a (mhash/create 0x11 "0beec7b8")
            b (mhash/create 0x11 "94a1be0c")
            c (mhash/create 0x12 "00a8b94e")
            c' (mhash/create 0x12 (b/init-bytes [0x00 0xa8 0xb9 0x4e]))]
-       (is (= a a) "Identical values are equal")
-       (is (= c c') "Values with same code and digest are equal")
-       (is (integer? (hash b)) "Hash code returns an integer")
-       (is (= (hash c) (hash c')) "Equivalent objects return same hashcode")
+       (testing "equality"
+         (is (= a a) "identical values are equal")
+         (is (= c c') "values with same code and digest are equal")
+         (is (not= a b))
+         (is (not= a nil))
+         (is (not= a "foo")))
+       (testing "hashing"
+         (is (integer? (hash b)) "hash code returns an integer")
+         (is (= (hash a) (hash a)) "hash code should be reflexive")
+         (is (= (hash c) (hash c')) "equivalent objects return same hashcode"))
        #?(:bb nil
-          :default (is (= [a b c] (sort [c b a])) "Multihashes sort in code/digest order")))))
+          :default
+          (testing "comparison"
+            (is (= [a b c] (sort [c b a])) "Multihashes sort in code/digest order")
+            (is (zero? (compare a a)))
+            (is (pos? (compare c a)))
+            (is (neg? (compare a b)))
+            (is (thrown-with-msg? #?(:clj ExceptionInfo, :cljs js/Error) #"Cannot compare multihash value to"
+                  (compare a "foo"))))))))
 
 
 (deftest multihash-rendering
@@ -99,6 +119,7 @@
       (is (= digest (:digest mhash)))
       (is (= hex (mhash/hex mhash))
           "Encoded multihashes match expected hex")
+      (is (= :not-found (:foo mhash :not-found)))
       #?(:bb nil
          :default
          (is (= mhash (mhash/parse hex))

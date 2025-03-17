@@ -272,6 +272,12 @@
     (->ContentID encoded nil 0)))
 
 
+(defn cid?
+  "True if the value is a ContentID object."
+  [x]
+  (instance? ContentID x))
+
+
 ;; ## Binary Serialization
 
 (defn- inner-bytes

@@ -83,7 +83,7 @@
   "Encode a multihash algorithm, digest length, and digest bytes into a single
   byte array."
   [code ^bytes digest]
-  (when (or (nil? digest) (zero? (alength digest)))
+  (when (zero? (alength digest))
     (throw (ex-info "Cannot encode a multihash with an empty digest"
                     {:code code})))
   (let [header (b/byte-array 8)
@@ -353,6 +353,12 @@
                   :algorithm (code->algo code)
                   :bits (* 8 (count digest-bytes)))
        :default mhash)))
+
+
+(defn multihash?
+  "True if the value is a multihash object."
+  [x]
+  (instance? Multihash x))
 
 
 ;; ## Serialization

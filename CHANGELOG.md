@@ -8,6 +8,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+...
+
+
+## [1.0.125] - 2025-03-17
+
 This is a major release with a couple of breaking changes - the high-level
 functionality is the same, but several things have been simplified.
 
@@ -76,7 +81,8 @@ functionality is the same, but several things have been simplified.
 Initial project release.
 
 
-[Unreleased]: https://github.com/greglook/clj-multiformats/compare/0.3.107...HEAD
+[Unreleased]: https://github.com/greglook/clj-multiformats/compare/1.0.125...HEAD
+[1.0.125]: https://github.com/greglook/clj-multiformats/compare/0.3.107...1.0.125
 [0.3.107]: https://github.com/greglook/clj-multiformats/compare/0.3.103...0.3.107
 [0.3.103]: https://github.com/greglook/clj-multiformats/compare/0.2.1...0.3.103
 [0.2.1]: https://github.com/greglook/clj-multiformats/compare/0.2.0...0.2.1

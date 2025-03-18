@@ -1,13 +1,15 @@
 {:paths ["src"]
 
  :deps
- {mvxcvi/alphabase {:mvn/version "3.0.182"}}
+ {mvxcvi/alphabase {:mvn/version "3.0.185"}}
 
  :aliases
  {:build
   {:deps {org.clojure/clojure {:mvn/version "1.12.0"}
           io.github.clojure/tools.build {:mvn/version "0.10.7"}
-          io.github.slipset/deps-deploy {:git/sha "07022b92d768590ab25b9ceb619ef17d2922da9a"}}
+          io.github.slipset/deps-deploy {:git/sha "07022b92d768590ab25b9ceb619ef17d2922da9a"}
+          ;; Override deps-deploy RELEASE dependency to avoid https://github.com/qos-ch/slf4j/issues/422
+          org.slf4j/slf4j-nop {:mvn/version "2.0.16"}}
    :ns-default build}
 
   :dev

@@ -8,7 +8,21 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-...
+This is a major release with a couple of breaking changes - the high-level
+functionality is the same, but several things have been simplified.
+
+### Changed
+- Drop dependency on Apache `commons-codec`.
+- Upgrade to `alphabase` to the 3.0 major version.
+- Rewrite `multiformats.address` and merge `multiformats.address.codec` into it.
+- All `multiformats.base.*` namespaces dropped in favor of new `alphabase` implementations.
+
+### Added
+- Multiaddr values are now `Counted`, `Sequential`, `Indexed`, and support `peek` and `pop`.
+- New predicate functions `address?`, `multihash?`, and `cid?`.
+
+### Fixed
+- Additional test coverage of all namespaces.
 
 
 ## [0.3.107] - 2023-03-06

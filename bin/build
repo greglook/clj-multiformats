@@ -6,10 +6,12 @@ set -e
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 if [[ $1 = clean ]]; then
-    rm -rf out target
+    rm -rf target
+
 elif [[ $1 = hiera ]]; then
     shift
     exec clojure -X:hiera "$@"
+
 elif [[ $1 = deploy ]]; then
     shift
     if [[ -z $CLOJARS_USERNAME && -z $CLOJARS_PASSWORD && -f $HOME/.clojure/clojars.env ]]; then
@@ -29,8 +31,16 @@ elif [[ $1 = deploy ]]; then
             exit 1
         fi
     fi
-    export CLOJARS_USERNAME CLOJARS_PASSWORD
+    if [[ -z $CLOJARS_SIGNING_KEY ]]; then
+        read -rp "Clojars signing key: " CLOJARS_SIGNING_KEY
+        if [[ -z $CLOJARS_SIGNING_KEY ]]; then
+            echo "No signing key specified, aborting" >&2
+            exit 1
+        fi
+    fi
+    export CLOJARS_USERNAME CLOJARS_PASSWORD CLOJARS_SIGNING_KEY
     exec clojure -T:build deploy "$@"
+
 else
     exec clojure -T:build "$@"
 fi

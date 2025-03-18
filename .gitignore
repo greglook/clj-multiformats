@@ -1,12 +1,14 @@
-/.clj-kondo/.cache
-/node_modules
-/target
-/out
-.cpcache
+# Build tooling
 .nrepl-port
 .cljs_node_repl
-*.jar
-*.class
-*.pom
+
+# Dependencies and caches
+/node_modules
+/.clj-kondo/.cache
+/.cpcache
+
+# Build outputs
+/target
 *.pom.asc
-pom.xml
+*.class
+*.jar

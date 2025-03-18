@@ -108,7 +108,7 @@
 
 #?(:bb
    (defrecord Multihash
-     [_bytes _meta _hash]
+     [_bytes]
 
      Object
 
@@ -123,6 +123,7 @@
       ^:unsynchronized-mutable _hash]
 
      java.io.Serializable
+
 
      Object
 
@@ -343,15 +344,14 @@
   [algorithm digest]
   (let [code (resolve-code algorithm)
         digest-bytes (resolve-digest digest)
-        encoded (encode-bytes code digest-bytes)
-        mhash (->Multihash encoded nil 0)]
-    #?(:bb (assoc mhash
+        encoded (encode-bytes code digest-bytes)]
+    #?(:bb (assoc (->Multihash encoded)
                   :length (count encoded)
                   :digest (str/lower-case (hex/encode digest-bytes))
                   :code code
                   :algorithm (code->algo code)
                   :bits (* 8 (count digest-bytes)))
-       :default mhash)))
+       :default (->Multihash encoded nil 0))))
 
 
 (defn multihash?

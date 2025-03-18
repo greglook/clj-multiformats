@@ -18,7 +18,8 @@
        (clojure.lang
          ILookup
          IMeta
-         IObj))))
+         IObj)
+       java.io.Serializable)))
 
 
 ;; ## Coding Functions
@@ -80,14 +81,15 @@
       _meta
       ^:unsynchronized-mutable _hash]
 
+     Serializable
+
+
      Object
 
      (toString
        [_]
        (cid-str (decode-parameters _bytes)))
 
-
-     java.io.Serializable
 
      (equals
        [this that]

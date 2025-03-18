@@ -90,7 +90,7 @@ jobs:
           keys:
             - v1-test-bb-{{ checksum "deps.edn" }}
             - v1-test-bb-
-      - run: bb test:bb
+      - run: bin/test bb
       - save_cache:
           key: v1-test-bb-{{ checksum "deps.edn" }}
           paths:

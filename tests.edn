@@ -1,4 +1,5 @@
 #kaocha/v1
 {:tests [{:id :unit}
          {:id :unit-cljs
-          :type :kaocha.type/cljs}]}
+          :type :kaocha.type/cljs
+          :cljs/compiler-options {:output-dir "target/cljs/out"}}]}
